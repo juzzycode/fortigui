@@ -29,16 +29,57 @@ npm install
 
 ## Start The App
 
+For normal frontend work:
+
 ```bash
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
 Then open the local Vite URL shown in the terminal.
 
+Important:
+
+- Use `npm run dev -- --host 0.0.0.0`
+- Not `npm run dev --host 0.0.0.0`
+- The extra `--` tells npm to pass `--host` through to Vite
+
+## Start The Gateway Cache API
+
+Only run this if you want the local backend running too:
+
+```bash
+npm run server
+```
+
 ## Build
+
+Only run this when you want to test a production build:
 
 ```bash
 npm run build
+```
+
+## Typical Workflows
+
+### Frontend only
+
+```bash
+npm install
+npm run dev -- --host 0.0.0.0
+```
+
+### Frontend plus backend
+
+Terminal 1:
+
+```bash
+npm run server
+```
+
+Terminal 2:
+
+```bash
+npm run dev -- --host 0.0.0.0
 ```
 
 ## Main Folders

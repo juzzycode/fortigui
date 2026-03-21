@@ -14,28 +14,44 @@ EdgeOps Cloud is an original React + TypeScript network operations UI for distri
 
 ## Run
 
-1. Install dependencies:
+You do not need every command for normal development.
+
+### Frontend Only
+
+Install dependencies once:
 
 ```bash
 npm install
 ```
 
-2. Start the development server:
+Start the frontend dev server:
 
 ```bash
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
-3. Build for production:
+Use this when you only want to work on the React UI.
 
-```bash
-npm run build
-```
+### Frontend Plus Gateway API
 
-4. Start the gateway cache API:
+If you also want the local gateway cache backend running, start it in a second terminal:
 
 ```bash
 npm run server
+```
+
+Then run the frontend dev server:
+
+```bash
+npm run dev -- --host 0.0.0.0
+```
+
+### Production Build Check
+
+Only run this when you want to verify a production build:
+
+```bash
+npm run build
 ```
 
 ## Implemented Pages
