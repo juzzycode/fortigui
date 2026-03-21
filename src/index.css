@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-canvas: #f4f7fb;
+  --color-surface: rgba(255, 255, 255, 0.88);
+  --color-muted: #5b6b82;
+  --color-soft: #eef3f9;
+  --color-border: rgba(148, 163, 184, 0.22);
+  --color-text: #0f172a;
+  --color-accent: #0f766e;
+  --color-accent-muted: rgba(15, 118, 110, 0.12);
+  --color-success: #15803d;
+  --color-warning: #ca8a04;
+  --color-danger: #dc2626;
+  --color-offline: #475569;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-canvas: #08111f;
+  --color-surface: rgba(10, 20, 37, 0.84);
+  --color-muted: #8ca0bb;
+  --color-soft: #111d30;
+  --color-border: rgba(71, 85, 105, 0.4);
+  --color-text: #edf4ff;
+  --color-accent: #2dd4bf;
+  --color-accent-muted: rgba(45, 212, 191, 0.14);
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
+  --color-offline: #94a3b8;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.11), transparent 28%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 22%),
+    var(--color-canvas);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight;
+  }
+
+  button,
+  input,
+  select {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-border bg-surface shadow-panel backdrop-blur-md;
+  }
+
+  .panel-title {
+    @apply text-sm font-semibold text-text;
+  }
+
+  .text-subtle {
+    @apply text-sm text-muted;
+  }
+
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-canvas;
+  }
+}

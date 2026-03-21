@@ -1,0 +1,20 @@
+import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, sites, switches, vlanProfiles } from '@/mocks/data';
+
+const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
+
+export const api = {
+  getDashboard: async () => delay({ sites, switches, accessPoints, clients, alerts, firmwareStatuses, bandwidthUsage }),
+  getSites: async () => delay(sites),
+  getSiteById: async (id: string) => delay(sites.find((site) => site.id === id) ?? null),
+  getSwitches: async () => delay(switches),
+  getSwitchById: async (id: string) => delay(switches.find((device) => device.id === id) ?? null),
+  getAps: async () => delay(accessPoints),
+  getApById: async (id: string) => delay(accessPoints.find((device) => device.id === id) ?? null),
+  getClients: async () => delay(clients),
+  getAlerts: async () => delay(alerts),
+  getFirmwareStatuses: async () => delay(firmwareStatuses),
+  getProfiles: async () => delay({ deviceProfiles, vlanProfiles, portProfiles }),
+  getEventLogsByTarget: async (targetId: string) => delay(eventLogs.filter((entry) => entry.targetId === targetId)),
+  simulateDeviceAction: async (action: string, targetId: string, payload?: Record<string, string | boolean>) =>
+    delay({ success: true, action, targetId, payload, message: `${action} queued for ${targetId}` }, 450),
+};

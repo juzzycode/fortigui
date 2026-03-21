@@ -1,0 +1,20 @@
+import { cn, severityTone, statusTone } from '@/lib/utils';
+import type { DeviceStatus, Severity } from '@/types/models';
+
+interface StatusBadgeProps {
+  value: DeviceStatus | Severity | string;
+  type?: 'status' | 'severity';
+}
+
+export const StatusBadge = ({ value, type = 'status' }: StatusBadgeProps) => {
+  const tone =
+    type === 'severity'
+      ? severityTone[value as Severity] ?? 'bg-slate-500/15 text-slate-500'
+      : statusTone[value as DeviceStatus] ?? 'bg-slate-500/15 text-slate-500';
+
+  return (
+    <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize', tone)}>
+      {String(value).replace('_', ' ')}
+    </span>
+  );
+};
