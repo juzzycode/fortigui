@@ -1,15 +1,60 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
+import initSqlJs from 'sql.js';
 
 export const createDatabase = async (dbPath) => {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  const db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database,
+  const SQL = await initSqlJs({
+    locateFile: (file) => path.resolve(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
   });
+  const existingFile = fs.existsSync(dbPath) ? fs.readFileSync(dbPath) : undefined;
+  const sqliteDb = new SQL.Database(existingFile);
+
+  const persist = () => {
+    const data = sqliteDb.export();
+    fs.writeFileSync(dbPath, Buffer.from(data));
+  };
+
+  const normalizeParams = (params) => {
+    if (params.length === 1 && Array.isArray(params[0])) return params[0];
+    return params;
+  };
+
+  const db = {
+    async exec(sql) {
+      sqliteDb.exec(sql);
+      persist();
+    },
+
+    async run(sql, ...params) {
+      sqliteDb.run(sql, normalizeParams(params));
+      persist();
+      return { changes: sqliteDb.getRowsModified() };
+    },
+
+    async get(sql, ...params) {
+      const statement = sqliteDb.prepare(sql, normalizeParams(params));
+      try {
+        return statement.step() ? statement.getAsObject() : undefined;
+      } finally {
+        statement.free();
+      }
+    },
+
+    async all(sql, ...params) {
+      const statement = sqliteDb.prepare(sql, normalizeParams(params));
+      try {
+        const rows = [];
+        while (statement.step()) {
+          rows.push(statement.getAsObject());
+        }
+        return rows;
+      } finally {
+        statement.free();
+      }
+    },
+  };
 
   await db.exec(`PRAGMA foreign_keys = ON;`);
   await db.exec(`PRAGMA journal_mode = WAL;`);

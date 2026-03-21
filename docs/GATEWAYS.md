@@ -120,7 +120,7 @@ Recommended runtime:
 
 - Node.js 20 or newer
 
-This backend uses the `sqlite` and `sqlite3` packages so it works on Node 20, including environments where `node:sqlite` is not available.
+This backend uses `sql.js` so it keeps a SQLite database file without requiring a native `sqlite3` binary. That avoids common glibc and platform mismatch issues on Linux hosts.
 
 Install dependencies:
 
