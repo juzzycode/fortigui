@@ -209,27 +209,44 @@ const RadioCard = ({ radio, summary }: { radio: RadioModel; summary?: RadioSumma
   </div>
 );
 
-const SsidCard = ({ ssid, clients }: { ssid: SSID; clients: AccessPointClient[] }) => (
-  <div className="group relative rounded-2xl bg-soft p-4">
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="font-semibold text-text">{ssid.name}</p>
-        <p className="mt-1 text-xs text-muted">{ssid.authMode} | {ssid.vlan}</p>
+const SsidCard = ({ ssid, clients }: { ssid: SSID; clients: AccessPointClient[] }) => {
+  const bandLabels = Array.from(new Set(clients.map((client) => client.radioType || client.radioId))).filter(Boolean);
+
+  return (
+    <div className="group relative rounded-2xl bg-soft p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-text">{ssid.name}</p>
+          <p className="mt-1 text-xs text-muted">{ssid.vlan}</p>
+        </div>
+        <div className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">{ssid.clientCount} clients</div>
       </div>
-      <div className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">{ssid.clientCount} clients</div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <QuickStat label="Security" value={ssid.authMode} />
+        <QuickStat label="Bands" value={bandLabels.join(', ') || 'N/A'} />
+        <QuickStat label="Top Host" value={clients[0]?.hostname || clients[0]?.name || 'None'} />
+        <QuickStat label="Visible Clients" value={clients.length} />
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {clients.slice(0, 3).map((client) => (
+          <span key={client.id} className="rounded-full bg-canvas px-2 py-1 text-xs text-muted">{client.name}</span>
+        ))}
+        {!clients.length ? <span className="text-xs text-muted">No active clients</span> : null}
+      </div>
+      <HoverCard className="top-3 right-3 w-80">
+        <HoverRow label="Client count" value={ssid.clientCount} />
+        <HoverRow label="Bands in use" value={bandLabels.join(', ') || 'N/A'} />
+        <HoverRow label="Top hostnames" value={clients.slice(0, 4).map((client) => client.hostname || client.name).join(', ') || 'N/A'} />
+        <HoverRow label="MAC preview" value={clients.slice(0, 3).map((client) => client.mac).join(', ') || 'N/A'} />
+      </HoverCard>
     </div>
-    <div className="mt-3 flex flex-wrap gap-2">
-      {clients.slice(0, 3).map((client) => (
-        <span key={client.id} className="rounded-full bg-canvas px-2 py-1 text-xs text-muted">{client.name}</span>
-      ))}
-      {!clients.length ? <span className="text-xs text-muted">No active clients</span> : null}
-    </div>
-    <HoverCard className="top-3 right-3 w-80">
-      <HoverRow label="Client count" value={ssid.clientCount} />
-      <HoverRow label="Bands in use" value={Array.from(new Set(clients.map((client) => client.radioType || client.radioId))).join(', ') || 'N/A'} />
-      <HoverRow label="Top hostnames" value={clients.slice(0, 4).map((client) => client.hostname || client.name).join(', ') || 'N/A'} />
-      <HoverRow label="MAC preview" value={clients.slice(0, 3).map((client) => client.mac).join(', ') || 'N/A'} />
-    </HoverCard>
+  );
+};
+
+const QuickStat = ({ label, value }: { label: string; value: ReactNode }) => (
+  <div className="rounded-2xl border border-border/70 bg-canvas px-3 py-2">
+    <p className="text-[11px] uppercase tracking-wide text-muted">{label}</p>
+    <p className="mt-1 text-sm font-medium text-text">{value}</p>
   </div>
 );
 

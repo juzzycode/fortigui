@@ -1,5 +1,6 @@
 import { BadgeCheck, Clock3, ShieldBan } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
@@ -51,8 +52,13 @@ export const FirmwarePage = () => {
       header: 'Device',
       render: (item) => (
         <div>
-          <p className="font-medium text-text">{item.deviceName ?? item.deviceId}</p>
+          <Link className="font-medium text-accent hover:underline" to={item.deviceType === 'switch' ? `/switches/${item.deviceId}` : `/aps/${item.deviceId}`}>
+            {item.deviceName ?? item.deviceId}
+          </Link>
           <p className="text-xs uppercase tracking-wide text-muted">{item.deviceType}</p>
+          <p className="mt-1 text-xs text-muted">
+            {item.current} {'->'} {item.target}
+          </p>
         </div>
       ),
     },
