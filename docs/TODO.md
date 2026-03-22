@@ -3,7 +3,7 @@
 ## High Priority
 
 - Fix firmware version collection where FortiGate inventory still reports generic values instead of the actual running version.
-- Add real switch port VLAN change support from the UI.
+- Working on this - Seems API doesnt allow for it. - Add real switch port VLAN change support from the UI.
 - Add SSH or CLI-assisted collection for attributes not exposed well through current REST endpoints.
   This should include live PoE draw, power state, voltage, current, and other low-level switch details.
 - Expand backend device actions from audit-only validation into real execution paths where FortiGate supports them cleanly.
