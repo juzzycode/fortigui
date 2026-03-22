@@ -542,8 +542,29 @@ const hasAnyTraffic = (stats) =>
         stats.txDrops > 0),
   );
 
+const inferPortAdminEnabled = (runtimePort, port, overrideEnabled = null) => {
+  if (typeof overrideEnabled === 'boolean') return overrideEnabled;
+
+  const runtimeStatus = String(runtimePort?.status || '').toLowerCase();
+  if (['disabled', 'down-admin', 'admin-down'].includes(runtimeStatus)) return false;
+
+  const configStatus = String(port?.status || '').toLowerCase();
+  if (['disable', 'disabled', 'down'].includes(configStatus)) return false;
+
+  return true;
+};
+
+const inferPoeEnabled = (runtimePort, port) => {
+  const runtimePoeEnabled = String(runtimePort?.poe_status || '').toLowerCase();
+  if (runtimePoeEnabled) {
+    return ['enable', 'enabled', 'on'].includes(runtimePoeEnabled);
+  }
+
+  const configPoeEnabled = String(port?.['poe-status'] || '').toLowerCase();
+  return ['enable', 'enabled', 'on'].includes(configPoeEnabled);
+};
+
 const mapPortStatus = (port, stats) => {
-  if (port['poe-status'] === 'disable') return 'disabled';
   if (stats) {
     if (!hasAnyTraffic(stats)) return 'down';
     if ((stats.rxErrors > 0 || stats.txErrors > 0 || stats.crcAlignments > 0) && port.status === 'up') return 'warning';
@@ -641,6 +662,13 @@ const mapPoeState = (runtimePort, configPort) => {
   if (portPower > 0 || powerStatus === 2) return 'Delivering power';
   if (runtimePoeEnabled === 'enabled' || configPoeEnabled === 'enable') return 'PoE enabled';
   return 'PoE disabled';
+};
+
+const invalidateSwitchCaches = (site, serial = null) => {
+  switchStatusCache.delete(`${site.id}:switch-status`);
+  if (serial) {
+    switchStatsCache.delete(`${site.id}:${serial}`);
+  }
 };
 
 const applyUplinkHeuristics = (ports) => {
@@ -773,22 +801,26 @@ const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = [], r
       const stats = statsByPort[portName] ? mapPortStats(statsByPort[portName]) : undefined;
       const runtimePort = runtimePortMap.get(portName);
       const override = portOverrides.get(portName);
-      const overrideDisabled = override?.enabled === false;
+      const adminEnabled = inferPortAdminEnabled(runtimePort, port, override?.enabled ?? null);
 
       return {
         id: `${switchId}-${portName}`,
         portNumber: portName,
         status:
-          overrideDisabled
+          !adminEnabled
             ? 'disabled'
             : runtimePort?.status
               ? String(runtimePort.status).toLowerCase() === 'up'
                 ? 'up'
-                : 'down'
+                : ['disabled', 'down-admin', 'admin-down'].includes(String(runtimePort.status).toLowerCase())
+                  ? 'disabled'
+                  : 'down'
               : mapPortStatus(port, stats),
+        adminEnabled,
         speed: port.speed || 'auto',
         poeWatts: parseMaybeNumber(runtimePort?.port_power) ?? 0,
         poeState: mapPoeState(runtimePort, port),
+        poeEnabled: inferPoeEnabled(runtimePort, port),
         vlan: override?.vlan || normalizeSwitchPortVlanName(port.vlan) || '_default',
         description: override?.description || port.description || portName,
         profileId: port['port-policy'] || port['qos-policy'] || 'default',
@@ -1181,7 +1213,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
     return dedupeSwitchVlanOptions([...interfaceOptions, ...currentPortVlans]);
   },
 
-  async updateManagedSwitchPortVlan(site, switchId, portNumber, vlan) {
+  async updateManagedSwitchPortSettings(site, switchId, portNumber, settings = {}) {
     if (!site.fortigate_ip || !site.fortigate_api_key) {
       throw new Error('FortiGate IP or API key is missing for this site.');
     }
@@ -1211,12 +1243,22 @@ export const createFortiGateClient = ({ siteStore }) => ({
     }
 
     const currentVlan = normalizeSwitchPortVlanName(port.vlan);
-    if (!vlan || vlan === currentVlan) {
+    const currentEnabled = inferPortAdminEnabled(null, port, null);
+    const currentPoeEnabled = inferPoeEnabled(null, port);
+    const requestedVlan = typeof settings.vlan === 'string' ? settings.vlan.trim() : currentVlan;
+    const requestedEnabled = typeof settings.enabled === 'boolean' ? settings.enabled : currentEnabled;
+    const requestedPoeEnabled = typeof settings.poeEnabled === 'boolean' ? settings.poeEnabled : currentPoeEnabled;
+
+    if (requestedVlan === currentVlan && requestedEnabled === currentEnabled && requestedPoeEnabled === currentPoeEnabled) {
       return {
         changed: false,
         verified: true,
         portName: normalizedPortNumber,
-        vlan: currentVlan || vlan,
+        current: {
+          vlan: currentVlan || requestedVlan,
+          enabled: currentEnabled,
+          poeEnabled: currentPoeEnabled,
+        },
       };
     }
 
@@ -1226,7 +1268,9 @@ export const createFortiGateClient = ({ siteStore }) => ({
       'port-name': normalizedPortNumber,
       q_origin_key: normalizedPortNumber,
       'switch-id': serial,
-      vlan: toFortiGateInterfaceReference(vlan, 'name'),
+      status: requestedEnabled ? 'up' : 'down',
+      'poe-status': requestedPoeEnabled ? 'enable' : 'disable',
+      vlan: toFortiGateInterfaceReference(requestedVlan, 'name'),
       'allowed-vlans-all': port['allowed-vlans-all'] || 'disable',
       'allowed-vlans': normalizeFortiGateInterfaceReferenceList(port['allowed-vlans'], 'vlan-name'),
       'untagged-vlans': normalizeFortiGateInterfaceReferenceList(port['untagged-vlans'], 'vlan-name'),
@@ -1243,8 +1287,10 @@ export const createFortiGateClient = ({ siteStore }) => ({
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown FortiGate error';
-      throw new Error(`Unable to update the FortiGate switch port VLAN. FortiGate rejected the UI-shaped port update: ${message}.`);
+      throw new Error(`Unable to update the FortiGate switch port settings. FortiGate rejected the UI-shaped port update: ${message}.`);
     }
+
+    invalidateSwitchCaches(site, serial);
 
     const verificationPayload = await requestJson(
       `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
@@ -1259,22 +1305,27 @@ export const createFortiGateClient = ({ siteStore }) => ({
       ? verifiedSwitch.ports.find((candidate) => normalizeManagedSwitchPortName(candidate?.['port-name']) === normalizedPortNumber)
       : null;
     const verifiedVlan = normalizeSwitchPortVlanName(verifiedPort?.vlan);
-
-    if (verifiedVlan !== vlan) {
-      return {
-        changed: true,
-        verified: false,
-        portName: normalizedPortNumber,
-        vlan: verifiedVlan || currentVlan,
-        requestedVlan: vlan,
-      };
-    }
+    const verifiedEnabled = inferPortAdminEnabled(null, verifiedPort, null);
+    const verifiedPoeEnabled = inferPoeEnabled(null, verifiedPort);
+    const verified =
+      verifiedVlan === requestedVlan &&
+      verifiedEnabled === requestedEnabled &&
+      verifiedPoeEnabled === requestedPoeEnabled;
 
     return {
       changed: true,
-      verified: true,
+      verified,
       portName: normalizedPortNumber,
-      vlan,
+      current: {
+        vlan: verifiedVlan || currentVlan,
+        enabled: verifiedEnabled,
+        poeEnabled: verifiedPoeEnabled,
+      },
+      requested: {
+        vlan: requestedVlan,
+        enabled: requestedEnabled,
+        poeEnabled: requestedPoeEnabled,
+      },
     };
   },
 

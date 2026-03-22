@@ -188,11 +188,15 @@ export const api = {
   saveSwitchPortOverride: async (
     id: string,
     portNumber: string,
-    payload: { description: string; vlan: string; enabled: boolean },
+    payload: { description: string; vlan: string; enabled: boolean; poeEnabled: boolean },
   ) =>
     jsonRequest<{ action: DeviceActionRecord }>(`/api/switches/${encodeURIComponent(id)}/ports/${encodeURIComponent(portNumber)}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
+    }).then((result) => result.action),
+  resetSwitchPortOverride: async (id: string, portNumber: string) =>
+    jsonRequest<{ action: DeviceActionRecord }>(`/api/switches/${encodeURIComponent(id)}/ports/${encodeURIComponent(portNumber)}`, {
+      method: 'DELETE',
     }).then((result) => result.action),
   runSwitchAction: async (id: string, action: string, payload?: Record<string, string | boolean>) =>
     jsonRequest<{ action: DeviceActionRecord }>(`/api/switches/${encodeURIComponent(id)}/actions`, {

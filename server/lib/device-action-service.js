@@ -120,44 +120,112 @@ export const createDeviceActionService = ({ siteStore, fortiGateClient, historyS
       }
 
       const requestedVlan = typeof payload.vlan === 'string' ? payload.vlan.trim() : port.vlan;
-      let vlanResult = {
+      const requestedEnabled = typeof payload.enabled === 'boolean' ? payload.enabled : port.adminEnabled !== false;
+      const requestedPoeEnabled = typeof payload.poeEnabled === 'boolean' ? payload.poeEnabled : port.poeEnabled !== false;
+      let portSettingsResult = {
         changed: false,
         verified: true,
-        vlan: port.vlan,
+        current: {
+          vlan: port.vlan,
+          enabled: port.adminEnabled !== false,
+          poeEnabled: port.poeEnabled !== false,
+        },
       };
 
-      if (requestedVlan && requestedVlan !== port.vlan) {
-        vlanResult = await fortiGateClient.updateManagedSwitchPortVlan(site, switchId, portNumber, requestedVlan);
+      if (
+        requestedVlan !== port.vlan ||
+        requestedEnabled !== (port.adminEnabled !== false) ||
+        requestedPoeEnabled !== (port.poeEnabled !== false)
+      ) {
+        portSettingsResult = await fortiGateClient.updateManagedSwitchPortSettings(site, switchId, portNumber, {
+          vlan: requestedVlan,
+          enabled: requestedEnabled,
+          poeEnabled: requestedPoeEnabled,
+        });
       }
 
-      await siteStore.upsertSwitchPortOverride({
-        siteId,
-        switchId,
-        portNumber,
-        description: typeof payload.description === 'string' ? payload.description : port.description,
-        vlan: vlanResult.changed && vlanResult.verified ? vlanResult.vlan : port.vlan,
-        enabled: typeof payload.enabled === 'boolean' ? payload.enabled : port.status !== 'disabled',
-        updatedBy: actorUsername,
-      });
+      const requestedDescription = typeof payload.description === 'string' ? payload.description.trim() : port.description;
+      const liveDescription = (port.description || port.portNumber).trim();
+      const descriptionOverride = requestedDescription && requestedDescription !== liveDescription ? requestedDescription : null;
+
+      if (descriptionOverride) {
+        await siteStore.upsertSwitchPortOverride({
+          siteId,
+          switchId,
+          portNumber,
+          description: descriptionOverride,
+          vlan: null,
+          enabled: null,
+          updatedBy: actorUsername,
+        });
+      } else {
+        await siteStore.deleteSwitchPortOverride(switchId, portNumber);
+      }
 
       return historyStore.completeActionEvent(event.id, {
-        status: vlanResult.changed && !vlanResult.verified ? 'manual_required' : 'completed',
-        message: vlanResult.changed && !vlanResult.verified
-          ? `FortiGate accepted the VLAN update request, but the readback still shows ${vlanResult.vlan || port.vlan} instead of ${vlanResult.requestedVlan || requestedVlan}. The UI kept the live FortiGate VLAN to avoid drift.`
-          : vlanResult.changed
-          ? 'The VLAN change was pushed to FortiGate successfully. Description and enabled state were saved in EdgeOps because per-port description and admin-state writes are not finalized yet.'
-          : 'Port settings were saved in EdgeOps immediately. No VLAN change was required, and per-port description/admin-state writes are still stored locally until a stable controller mutation path is finalized.',
+        status: portSettingsResult.changed && !portSettingsResult.verified ? 'manual_required' : 'completed',
+        message: portSettingsResult.changed && !portSettingsResult.verified
+          ? `FortiGate accepted the port update request, but the readback still shows VLAN ${portSettingsResult.current?.vlan ?? port.vlan}, status ${portSettingsResult.current?.enabled ? 'enabled' : 'disabled'}, and PoE ${portSettingsResult.current?.poeEnabled ? 'enabled' : 'disabled'} instead of the requested settings. EdgeOps kept the live FortiGate values to avoid drift.`
+          : portSettingsResult.changed
+          ? 'The port VLAN, administrative status, and PoE state were pushed to FortiGate successfully. Description remains EdgeOps-local until a stable controller description mutation path is finalized.'
+          : 'Port description was saved in EdgeOps. The live FortiGate VLAN, status, and PoE settings did not require changes.',
         result: {
           portNumber,
-          persistedIn: vlanResult.changed && vlanResult.verified ? 'fortigate+edgeops' : 'edgeops',
-          vlan: vlanResult.vlan,
-          requestedVlan: vlanResult.requestedVlan || requestedVlan,
+          persistedIn: descriptionOverride
+            ? portSettingsResult.changed && portSettingsResult.verified
+              ? 'fortigate+edgeops'
+              : 'edgeops'
+            : portSettingsResult.changed && portSettingsResult.verified
+              ? 'fortigate'
+              : 'edgeops',
+          current: portSettingsResult.current,
+          requested: portSettingsResult.requested ?? {
+            vlan: requestedVlan,
+            enabled: requestedEnabled,
+            poeEnabled: requestedPoeEnabled,
+          },
         },
       });
     } catch (error) {
       return historyStore.completeActionEvent(event.id, {
         status: 'failed',
         message: error instanceof Error ? error.message : 'Unable to save the port update.',
+        result: null,
+      });
+    }
+  },
+
+  async resetSwitchPortOverride({ switchId, portNumber, actorUsername }) {
+    const siteId = extractSiteIdFromTarget(switchId);
+    if (!siteId) {
+      throw new Error('Unable to resolve the site for this port reset.');
+    }
+
+    const event = await historyStore.createActionEvent({
+      siteId,
+      targetId: switchId,
+      targetType: 'switch',
+      action: 'reset-port-override',
+      actorUsername,
+      payload: {
+        port: portNumber,
+      },
+    });
+
+    try {
+      await siteStore.deleteSwitchPortOverride(switchId, portNumber);
+      return historyStore.completeActionEvent(event.id, {
+        status: 'completed',
+        message: 'EdgeOps local overrides for this port were cleared. Live FortiGate settings will be shown after refresh.',
+        result: {
+          portNumber,
+          persistedIn: 'fortigate',
+        },
+      });
+    } catch (error) {
+      return historyStore.completeActionEvent(event.id, {
+        status: 'failed',
+        message: error instanceof Error ? error.message : 'Unable to reset the port override.',
         result: null,
       });
     }

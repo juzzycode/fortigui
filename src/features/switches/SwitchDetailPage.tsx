@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BellRing, Lightbulb, RotateCw, Save } from 'lucide-react';
+import { BellRing, Lightbulb, RotateCw, Save, Undo2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ActionButton } from '@/components/common/ActionButton';
@@ -22,8 +22,9 @@ export const SwitchDetailPage = () => {
   const [message, setMessage] = useState('');
   const [selectedPort, setSelectedPort] = useState<SwitchPort | null>(null);
   const [switchVlans, setSwitchVlans] = useState<SwitchVlanOption[]>([]);
-  const [portForm, setPortForm] = useState({ description: '', vlan: '', enabled: true });
+  const [portForm, setPortForm] = useState({ description: '', vlan: '', enabled: true, poeEnabled: true });
   const [savingPort, setSavingPort] = useState(false);
+  const [resettingPort, setResettingPort] = useState(false);
   const role = useAppStore((state) => state.role);
   const canOperate = role !== 'read_only';
 
@@ -69,7 +70,8 @@ export const SwitchDetailPage = () => {
     setPortForm({
       description: port.description,
       vlan: port.vlan,
-      enabled: port.status !== 'disabled',
+      enabled: port.adminEnabled !== false,
+      poeEnabled: port.poeEnabled !== false,
     });
   };
 
@@ -85,6 +87,20 @@ export const SwitchDetailPage = () => {
       await refresh();
     } finally {
       setSavingPort(false);
+    }
+  };
+
+  const handleResetPort = async () => {
+    if (!selectedPort) return;
+
+    setResettingPort(true);
+    try {
+      const result = await api.resetSwitchPortOverride(device.id, selectedPort.portNumber);
+      setMessage(result.message);
+      setSelectedPort(null);
+      await refresh();
+    } finally {
+      setResettingPort(false);
     }
   };
 
@@ -167,7 +183,7 @@ export const SwitchDetailPage = () => {
       <SideDrawer
         open={Boolean(selectedPort)}
         title={selectedPort ? `Edit ${formatPortLabel(selectedPort.portNumber)}` : ''}
-        subtitle="Description, VLAN, and enabled state are persisted immediately in EdgeOps and reflected on this switch detail view."
+        subtitle="Description is stored in EdgeOps. VLAN, administrative status, and PoE state are pushed to FortiGate through the managed-switch API."
         onClose={() => setSelectedPort(null)}
       >
         {selectedPort ? (
@@ -194,8 +210,8 @@ export const SwitchDetailPage = () => {
             </Field>
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-text">Enabled</p>
-                <p className="mt-1 text-sm text-muted">Disable the port visually in EdgeOps until a direct controller mutation path is finalized.</p>
+                <p className="text-sm font-medium text-text">Administrative Status</p>
+                <p className="mt-1 text-sm text-muted">Push an enable or disable state to the FortiGate managed-switch configuration.</p>
               </div>
               <input
                 checked={portForm.enabled}
@@ -204,13 +220,33 @@ export const SwitchDetailPage = () => {
                 type="checkbox"
               />
             </label>
+            {selectedPort.tags?.includes('PoE') ? (
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-text">PoE</p>
+                  <p className="mt-1 text-sm text-muted">Toggle port PoE power delivery on or off from the FortiGate controller.</p>
+                </div>
+                <input
+                  checked={portForm.poeEnabled}
+                  className="h-5 w-5 rounded border-border bg-soft text-accent focus:ring-accent"
+                  onChange={(event) => setPortForm((current) => ({ ...current, poeEnabled: event.target.checked }))}
+                  type="checkbox"
+                />
+              </label>
+            ) : null}
             <div className="rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
-              VLAN options are loaded from the FortiGate site inventory and VLAN changes are pushed back through the managed-switch API. Per-port description and enabled-state writes are still stored locally in EdgeOps until those controller mutation paths are finalized.
+              VLAN options are loaded from the FortiGate site inventory. Description remains EdgeOps-local, while VLAN, administrative status, and PoE writes are pushed to FortiGate and then read back for verification.
             </div>
-            <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70" disabled={savingPort} type="submit">
-              <Save className="h-4 w-4" />
-              {savingPort ? 'Saving...' : 'Save Port'}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-soft px-4 py-3 text-sm font-medium text-text transition hover:border-accent/35 disabled:cursor-not-allowed disabled:opacity-70" disabled={resettingPort || savingPort} onClick={handleResetPort} type="button">
+                <Undo2 className="h-4 w-4" />
+                {resettingPort ? 'Resetting...' : 'Reset'}
+              </button>
+              <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70" disabled={savingPort || resettingPort} type="submit">
+                <Save className="h-4 w-4" />
+                {savingPort ? 'Saving...' : 'Save Port'}
+              </button>
+            </div>
           </form>
         ) : null}
       </SideDrawer>

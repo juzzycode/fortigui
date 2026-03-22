@@ -406,4 +406,15 @@ export const createSiteStore = ({ db }) => ({
       portNumber,
     );
   },
+
+  async deleteSwitchPortOverride(switchId, portNumber) {
+    await db.run(
+      `
+        DELETE FROM switch_port_overrides
+        WHERE switch_id = ? AND port_number = ?
+      `,
+      switchId,
+      portNumber,
+    );
+  },
 });
