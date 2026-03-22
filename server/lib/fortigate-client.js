@@ -962,8 +962,8 @@ export const createFortiGateClient = ({ siteStore }) => ({
     const statsPayload = await getCachedSwitchStats(site, serial, site.fortigate_api_key).catch(() => null);
     const statsByPort =
       Array.isArray(statsPayload?.results) && statsPayload.results[0]?.ports ? statsPayload.results[0].ports : {};
-    const switchId = buildSwitchId(site.id, serial);
-    const portOverrides = await siteStore.listSwitchPortOverrides(switchId).catch(() => []);
+    const resolvedSwitchId = buildSwitchId(site.id, serial);
+    const portOverrides = await siteStore.listSwitchPortOverrides(resolvedSwitchId).catch(() => []);
 
     return mapManagedSwitch(site, item, statsByPort, portOverrides);
   },
