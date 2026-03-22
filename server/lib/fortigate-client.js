@@ -246,6 +246,31 @@ const uniqueBy = (items, selector) => {
   return output;
 };
 
+const toFortiGateInterfaceReference = (value, nameKey = 'name') => {
+  const name =
+    typeof value === 'string'
+      ? value.trim()
+      : extractStatusField(value, [nameKey, 'vlan-name', 'q_origin_key', 'name']);
+
+  if (!name) return null;
+
+  return {
+    [nameKey]: name,
+    q_origin_key: name,
+    datasource: 'system.interface',
+  };
+};
+
+const normalizeFortiGateInterfaceReferenceList = (value, nameKey = 'vlan-name') => {
+  const entries = Array.isArray(value) ? value : [];
+  return entries.map((entry) => toFortiGateInterfaceReference(entry, nameKey)).filter(Boolean);
+};
+
+const normalizeSwitchPortVlanName = (value) => {
+  if (typeof value === 'string') return value.trim();
+  return extractStatusField(value, ['name', 'vlan-name', 'q_origin_key']) || '';
+};
+
 const mapApClient = (client) => ({
   id: client.mac || `${client.wtp_id}-${client.ip || 'client'}`,
   name: client.hostname || client.host || client.manufacturer || client.mac || 'Client',
@@ -750,7 +775,7 @@ const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = [], r
               : mapPortStatus(port, stats),
         speed: port.speed || 'auto',
         poeWatts: parseMaybeNumber(runtimePort?.port_power) ?? 0,
-        vlan: override?.vlan || port.vlan || '_default',
+        vlan: override?.vlan || normalizeSwitchPortVlanName(port.vlan) || '_default',
         description: override?.description || port.description || portName,
         profileId: port['port-policy'] || port['qos-policy'] || 'default',
         clientCount: 0,
@@ -1131,9 +1156,9 @@ export const createFortiGateClient = ({ siteStore }) => ({
     const currentPortVlans = Array.isArray(switchItem?.ports)
       ? switchItem.ports
           .flatMap((port) => [
-            String(port?.vlan || '').trim(),
-            ...(Array.isArray(port?.['untagged-vlans']) ? port['untagged-vlans'].map((entry) => String(entry || '').trim()) : []),
-            ...(Array.isArray(port?.['allowed-vlans']) ? port['allowed-vlans'].map((entry) => String(entry || '').trim()) : []),
+            normalizeSwitchPortVlanName(port?.vlan),
+            ...(Array.isArray(port?.['untagged-vlans']) ? port['untagged-vlans'].map((entry) => normalizeSwitchPortVlanName(entry)) : []),
+            ...(Array.isArray(port?.['allowed-vlans']) ? port['allowed-vlans'].map((entry) => normalizeSwitchPortVlanName(entry)) : []),
           ])
           .filter(Boolean)
           .map((name) => ({ name, vlanId: null, interfaceName: null }))
@@ -1171,7 +1196,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
       throw new Error('Port not found on the selected switch.');
     }
 
-    const currentVlan = String(port.vlan || '').trim();
+    const currentVlan = normalizeSwitchPortVlanName(port.vlan);
     if (!vlan || vlan === currentVlan) {
       return {
         changed: false,
@@ -1181,41 +1206,30 @@ export const createFortiGateClient = ({ siteStore }) => ({
       };
     }
 
+    const vdom = encodeURIComponent(extractStatusField(item, ['vdom']) || 'root');
     const patchBody = {
+      ...port,
       'port-name': normalizedPortNumber,
       q_origin_key: normalizedPortNumber,
-      vlan,
-      'untagged-vlans': [vlan],
+      'switch-id': serial,
+      vlan: toFortiGateInterfaceReference(vlan, 'name'),
+      'allowed-vlans-all': port['allowed-vlans-all'] || 'disable',
+      'allowed-vlans': normalizeFortiGateInterfaceReferenceList(port['allowed-vlans'], 'vlan-name'),
+      'untagged-vlans': normalizeFortiGateInterfaceReferenceList(port['untagged-vlans'], 'vlan-name'),
     };
 
     try {
       await requestFortiGate(
-        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}/ports/${encodeURIComponent(normalizedPortNumber)}`,
+        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}/ports/${encodeURIComponent(normalizedPortNumber)}?vdom=${vdom}`,
         site.fortigate_api_key,
         {
           method: 'PUT',
-          body: {
-            data: patchBody,
-          },
+          body: patchBody,
         },
       );
-    } catch (firstError) {
-      await requestFortiGate(
-        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}`,
-        site.fortigate_api_key,
-        {
-          method: 'PUT',
-          body: {
-            data: {
-              ports: [patchBody],
-            },
-          },
-        },
-      ).catch((secondError) => {
-        const firstMessage = firstError instanceof Error ? firstError.message : 'Unknown FortiGate error';
-        const secondMessage = secondError instanceof Error ? secondError.message : 'Unknown FortiGate error';
-        throw new Error(`Unable to update the FortiGate switch port VLAN. Attempt 1 failed: ${firstMessage}. Attempt 2 failed: ${secondMessage}.`);
-      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown FortiGate error';
+      throw new Error(`Unable to update the FortiGate switch port VLAN. FortiGate rejected the UI-shaped port update: ${message}.`);
     }
 
     const verificationPayload = await requestJson(
@@ -1230,7 +1244,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
     const verifiedPort = Array.isArray(verifiedSwitch?.ports)
       ? verifiedSwitch.ports.find((candidate) => normalizeManagedSwitchPortName(candidate?.['port-name']) === normalizedPortNumber)
       : null;
-    const verifiedVlan = String(verifiedPort?.vlan || '').trim();
+    const verifiedVlan = normalizeSwitchPortVlanName(verifiedPort?.vlan);
 
     if (verifiedVlan !== vlan) {
       return {
