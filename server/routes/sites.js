@@ -12,7 +12,40 @@ export const createSitesRouter = ({ siteStore, fortiGateClient }) => {
 
   router.get('/', async (_request, response) => {
     const rows = await siteStore.listSites();
-    const sites = await Promise.all(rows.map((site) => fortiGateClient.summarizeSite(site)));
+    const sites = await Promise.all(
+      rows.map((site) =>
+        fortiGateClient.summarizeSite(site).catch((error) => {
+          console.error(`[sites] Failed to summarize site ${site.id}:`, error);
+          return {
+            id: site.id,
+            shorthandId: site.shorthand_id,
+            name: site.name,
+            address: site.address,
+            timezone: site.timezone,
+            region: site.region,
+            status: 'warning',
+            wanStatus: 'degraded',
+            clientCount: 0,
+            switchCount: 0,
+            apCount: 0,
+            fortigateName: site.fortigate_name || site.name,
+            fortigateIp: site.fortigate_ip || '',
+            fortigateVersion: null,
+            fortigateSerial: null,
+            addressObjectCount: 0,
+            apiReachable: false,
+            lastSyncError: error instanceof Error ? error.message : 'Unable to summarize site',
+            latencyAvgMs: null,
+            latencyMinMs: null,
+            latencyMaxMs: null,
+            latencyPacketLoss: null,
+            latencyCheckedAt: null,
+            latencyError: null,
+            source: site.is_demo ? 'demo' : 'live',
+          };
+        }),
+      ),
+    );
     response.json({ sites });
   });
 

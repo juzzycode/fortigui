@@ -6,11 +6,13 @@ const execFileAsync = promisify(execFile);
 const pingCacheTtlMs = 60_000;
 const switchStatsCacheTtlMs = 60_000;
 const wirelessClientsCacheTtlMs = 30_000;
+const fortiGateRequestTimeoutMs = 5_000;
 const switchStatsCache = new Map();
 const wirelessClientsCache = new Map();
 
 const requestJson = (url, apiKey) =>
   new Promise((resolve, reject) => {
+    let settled = false;
     const request = https.request(
       url,
       {
@@ -27,6 +29,8 @@ const requestJson = (url, apiKey) =>
           body += chunk;
         });
         response.on('end', () => {
+          if (settled) return;
+          settled = true;
           if ((response.statusCode ?? 500) >= 400) {
             reject(new Error(`FortiGate request failed with HTTP ${response.statusCode}`));
             return;
@@ -41,7 +45,17 @@ const requestJson = (url, apiKey) =>
       },
     );
 
-    request.on('error', reject);
+    request.setTimeout(fortiGateRequestTimeoutMs, () => {
+      if (settled) return;
+      settled = true;
+      request.destroy(new Error(`FortiGate request timed out after ${fortiGateRequestTimeoutMs / 1000}s`));
+    });
+
+    request.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
     request.end();
   });
 
