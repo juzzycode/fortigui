@@ -1,4 +1,4 @@
-import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, DeviceProfile, EventLog, FirmwareStatus, ManagedUser, PortProfile, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, TopologyGraph, VLANProfile } from '@/types/models';
+import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, DeviceProfile, EventLog, FirmwareStatus, ManagedUser, PortProfile, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, SwitchVlanOption, TopologyGraph, VLANProfile } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const authRequiredEventName = 'edgeops:auth-required';
@@ -183,6 +183,8 @@ export const api = {
       siteId && siteId !== 'all' ? `/api/switches?siteId=${encodeURIComponent(siteId)}` : '/api/switches',
     ).then((payload) => payload.switches),
   getSwitchById: async (id: string) => jsonRequest<{ switch: SwitchDevice }>(`/api/switches/${encodeURIComponent(id)}`).then((payload) => payload.switch),
+  getSwitchVlans: async (id: string) =>
+    jsonRequest<{ vlans: SwitchVlanOption[] }>(`/api/switches/${encodeURIComponent(id)}/vlans`).then((payload) => payload.vlans),
   saveSwitchPortOverride: async (
     id: string,
     portNumber: string,

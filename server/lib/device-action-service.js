@@ -119,23 +119,35 @@ export const createDeviceActionService = ({ siteStore, fortiGateClient, historyS
         throw new Error('Port not found on the selected switch.');
       }
 
+      const requestedVlan = typeof payload.vlan === 'string' ? payload.vlan.trim() : port.vlan;
+      let vlanResult = {
+        changed: false,
+        vlan: port.vlan,
+      };
+
+      if (requestedVlan && requestedVlan !== port.vlan) {
+        vlanResult = await fortiGateClient.updateManagedSwitchPortVlan(site, switchId, portNumber, requestedVlan);
+      }
+
       await siteStore.upsertSwitchPortOverride({
         siteId,
         switchId,
         portNumber,
         description: typeof payload.description === 'string' ? payload.description : port.description,
-        vlan: typeof payload.vlan === 'string' ? payload.vlan : port.vlan,
+        vlan: vlanResult.changed ? vlanResult.vlan : port.vlan,
         enabled: typeof payload.enabled === 'boolean' ? payload.enabled : port.status !== 'disabled',
         updatedBy: actorUsername,
       });
 
       return historyStore.completeActionEvent(event.id, {
         status: 'completed',
-        message:
-          'Port settings were saved in EdgeOps immediately. VLAN and enable state are ready for future controller writes; per-port description support was not confirmed in the FortiGate managed-switch API, so no controller write was attempted.',
+        message: vlanResult.changed
+          ? 'The VLAN change was pushed to FortiGate successfully. Description and enabled state were saved in EdgeOps because per-port description and admin-state writes are not finalized yet.'
+          : 'Port settings were saved in EdgeOps immediately. No VLAN change was required, and per-port description/admin-state writes are still stored locally until a stable controller mutation path is finalized.',
         result: {
           portNumber,
-          persistedIn: 'edgeops',
+          persistedIn: vlanResult.changed ? 'fortigate+edgeops' : 'edgeops',
+          vlan: vlanResult.vlan,
         },
       });
     } catch (error) {

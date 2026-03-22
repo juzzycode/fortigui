@@ -45,6 +45,36 @@ export const createSwitchesRouter = ({ siteStore, fortiGateClient, deviceActionS
     response.status(404).json({ error: 'Switch not found' });
   });
 
+  router.get('/:id/vlans', async (request, response) => {
+    const scopedSiteId = request.auth?.user?.siteId ?? null;
+    const sites = scopedSiteId ? [await siteStore.getSiteById(scopedSiteId)].filter(Boolean) : await siteStore.listSites();
+
+    for (const site of sites) {
+      if (!ensureSiteAccess(request, response, site.id)) {
+        return;
+      }
+
+      const device = await fortiGateClient.getManagedSwitchDetailForSite(site, request.params.id).catch(() => null);
+      if (!device) {
+        continue;
+      }
+
+      const vlans = await fortiGateClient.listManagedSwitchVlansForSite(site, request.params.id).catch((error) => {
+        response.status(502).json({ error: error instanceof Error ? error.message : 'Unable to load switch VLAN list' });
+        return null;
+      });
+
+      if (!vlans) {
+        return;
+      }
+
+      response.json({ vlans });
+      return;
+    }
+
+    response.status(404).json({ error: 'Switch not found' });
+  });
+
   router.post('/:id/actions', requireOperator, async (request, response) => {
     const scopedSiteId = request.auth?.user?.siteId ?? null;
     const siteId = request.params.id.split('--')[0];

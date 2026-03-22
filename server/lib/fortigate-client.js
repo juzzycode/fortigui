@@ -35,18 +35,23 @@ const fortiGateBaseUrl = (value) => {
   return target.authority ? `https://${target.authority}` : '';
 };
 
-const requestJson = (url, apiKey) =>
+const requestFortiGate = (url, apiKey, options = {}) =>
   new Promise((resolve, reject) => {
     let settled = false;
+    const method = options.method || 'GET';
+    const body = options.body;
+    const headers = {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: 'application/json',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers ?? {}),
+    };
     const request = https.request(
       url,
       {
-        method: 'GET',
+        method,
         rejectUnauthorized: false,
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Accept: 'application/json',
-        },
+        headers,
       },
       (response) => {
         let body = '';
@@ -62,7 +67,16 @@ const requestJson = (url, apiKey) =>
           }
 
           try {
-            resolve(body ? JSON.parse(body) : {});
+            const contentType = String(response.headers['content-type'] || '').toLowerCase();
+            if (!body) {
+              resolve({});
+              return;
+            }
+            if (contentType.includes('application/json')) {
+              resolve(JSON.parse(body));
+              return;
+            }
+            resolve(body);
           } catch (error) {
             reject(error);
           }
@@ -82,8 +96,13 @@ const requestJson = (url, apiKey) =>
       settled = true;
       reject(error);
     });
+    if (body) {
+      request.write(typeof body === 'string' ? body : JSON.stringify(body));
+    }
     request.end();
   });
+
+const requestJson = (url, apiKey) => requestFortiGate(url, apiKey);
 
 const parseMaybeNumber = (value) => {
   const numeric = Number(value);
@@ -618,6 +637,25 @@ const buildPortOverrideMap = (rows = []) =>
     ]),
   );
 
+const normalizeManagedSwitchPortName = (value) => String(value || '').trim();
+
+const mapSwitchVlanOption = (item) => ({
+  name: String(item?.name || item?.q_origin_key || '').trim(),
+  vlanId: parseMaybeNumber(item?.vlanid),
+  interfaceName: String(item?.interface || item?.interface_name || item?.fortilink || '').trim() || null,
+});
+
+const dedupeSwitchVlanOptions = (items) =>
+  uniqueBy(
+    items.filter((item) => item && item.name),
+    (item) => item.name,
+  ).sort((left, right) => {
+    const leftId = left.vlanId ?? Number.MAX_SAFE_INTEGER;
+    const rightId = right.vlanId ?? Number.MAX_SAFE_INTEGER;
+    if (leftId !== rightId) return leftId - rightId;
+    return left.name.localeCompare(right.name);
+  });
+
 const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = []) => {
   const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
   const switchId = buildSwitchId(site.id, serial);
@@ -966,6 +1004,100 @@ export const createFortiGateClient = ({ siteStore }) => ({
     const portOverrides = await siteStore.listSwitchPortOverrides(resolvedSwitchId).catch(() => []);
 
     return mapManagedSwitch(site, item, statsByPort, portOverrides);
+  },
+
+  async listManagedSwitchVlansForSite(site, switchId) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
+      return [];
+    }
+
+    const [interfacesPayload, switchPayload] = await Promise.all([
+      requestJson(
+        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/system/interface`,
+        site.fortigate_api_key,
+      ).catch(() => ({ results: [] })),
+      requestJson(
+        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
+        site.fortigate_api_key,
+      ),
+    ]);
+
+    const interfaces = Array.isArray(interfacesPayload.results) ? interfacesPayload.results : [];
+    const interfaceOptions = interfaces
+      .filter((item) => String(item?.type || '').toLowerCase() === 'vlan' || item?.vlanid !== undefined)
+      .map(mapSwitchVlanOption);
+
+    const switches = Array.isArray(switchPayload.results) ? switchPayload.results : [];
+    const switchItem = switches.find(
+      (candidate) => buildSwitchId(site.id, extractStatusField(candidate, ['sn', 'serial', 'switch-id']) || 'unknown-switch') === switchId,
+    );
+
+    const currentPortVlans = Array.isArray(switchItem?.ports)
+      ? switchItem.ports
+          .map((port) => String(port?.vlan || '').trim())
+          .filter(Boolean)
+          .map((name) => ({ name, vlanId: null, interfaceName: null }))
+      : [];
+
+    return dedupeSwitchVlanOptions([...interfaceOptions, ...currentPortVlans]);
+  },
+
+  async updateManagedSwitchPortVlan(site, switchId, portNumber, vlan) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
+      throw new Error('FortiGate IP or API key is missing for this site.');
+    }
+
+    const payload = await requestJson(
+      `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
+      site.fortigate_api_key,
+    );
+
+    const switches = Array.isArray(payload.results) ? payload.results : [];
+    const item = switches.find(
+      (candidate) => buildSwitchId(site.id, extractStatusField(candidate, ['sn', 'serial', 'switch-id']) || 'unknown-switch') === switchId,
+    );
+
+    if (!item) {
+      throw new Error('Switch not found in the live FortiGate inventory.');
+    }
+
+    const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
+    const normalizedPortNumber = normalizeManagedSwitchPortName(portNumber);
+    const port = Array.isArray(item.ports)
+      ? item.ports.find((candidate) => normalizeManagedSwitchPortName(candidate?.['port-name']) === normalizedPortNumber)
+      : null;
+
+    if (!port) {
+      throw new Error('Port not found on the selected switch.');
+    }
+
+    const currentVlan = String(port.vlan || '').trim();
+    if (!vlan || vlan === currentVlan) {
+      return {
+        changed: false,
+        portName: normalizedPortNumber,
+        vlan: currentVlan || vlan,
+      };
+    }
+
+    const body = {
+      vlan,
+    };
+
+    await requestFortiGate(
+      `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}/ports/${encodeURIComponent(normalizedPortNumber)}`,
+      site.fortigate_api_key,
+      {
+        method: 'PUT',
+        body,
+      },
+    );
+
+    return {
+      changed: true,
+      portName: normalizedPortNumber,
+      vlan,
+    };
   },
 
   async listManagedAccessPointsForSite(site) {

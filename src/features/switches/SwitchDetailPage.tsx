@@ -12,7 +12,7 @@ import { PortBandwidthChart } from '@/components/data-display/PortBandwidthChart
 import { PortMap } from '@/components/data-display/PortMap';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
-import type { EventLog, SwitchDevice, SwitchPort } from '@/types/models';
+import type { EventLog, SwitchDevice, SwitchPort, SwitchVlanOption } from '@/types/models';
 import { formatBytes, formatRelativeTime } from '@/lib/utils';
 
 export const SwitchDetailPage = () => {
@@ -21,15 +21,21 @@ export const SwitchDetailPage = () => {
   const [events, setEvents] = useState<EventLog[]>([]);
   const [message, setMessage] = useState('');
   const [selectedPort, setSelectedPort] = useState<SwitchPort | null>(null);
+  const [switchVlans, setSwitchVlans] = useState<SwitchVlanOption[]>([]);
   const [portForm, setPortForm] = useState({ description: '', vlan: '', enabled: true });
   const [savingPort, setSavingPort] = useState(false);
   const role = useAppStore((state) => state.role);
   const canOperate = role !== 'read_only';
 
   const refresh = async () => {
-    const [switchRow, eventRows] = await Promise.all([api.getSwitchById(id), api.getEventLogsByTarget(id)]);
+    const [switchRow, eventRows, vlanRows] = await Promise.all([
+      api.getSwitchById(id),
+      api.getEventLogsByTarget(id),
+      api.getSwitchVlans(id).catch(() => []),
+    ]);
     setDevice(switchRow);
     setEvents(eventRows);
+    setSwitchVlans(vlanRows);
   };
 
   useEffect(() => {
@@ -51,6 +57,14 @@ export const SwitchDetailPage = () => {
   };
 
   const openPortEditor = (port: SwitchPort) => {
+    const normalizedVlan = port.vlan?.trim();
+    if (normalizedVlan && !switchVlans.some((item) => item.name === normalizedVlan)) {
+      setSwitchVlans((current) =>
+        [{ name: normalizedVlan, vlanId: null, interfaceName: null }, ...current].filter(
+          (item, index, items) => items.findIndex((candidate) => candidate.name === item.name) === index,
+        ),
+      );
+    }
     setSelectedPort(port);
     setPortForm({
       description: port.description,
@@ -166,11 +180,17 @@ export const SwitchDetailPage = () => {
               />
             </Field>
             <Field label="VLAN">
-              <input
+              <select
                 className={inputClassName}
                 onChange={(event) => setPortForm((current) => ({ ...current, vlan: event.target.value }))}
                 value={portForm.vlan}
-              />
+              >
+                {switchVlans.map((option) => (
+                  <option key={option.name} value={option.name}>
+                    {option.vlanId ? `VLAN ${option.vlanId} - ${option.name}` : option.name}
+                  </option>
+                ))}
+              </select>
             </Field>
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
               <div>
@@ -185,7 +205,7 @@ export const SwitchDetailPage = () => {
               />
             </label>
             <div className="rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
-              FortiGate documentation confirms VLAN settings under the managed-switch port configuration. Per-port description write support was not clearly confirmed through the controller API, so these quick edits are currently saved in EdgeOps instead of being pushed directly to the FortiGate.
+              VLAN options are loaded from the FortiGate site inventory and VLAN changes are pushed back through the managed-switch API. Per-port description and enabled-state writes are still stored locally in EdgeOps until those controller mutation paths are finalized.
             </div>
             <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70" disabled={savingPort} type="submit">
               <Save className="h-4 w-4" />

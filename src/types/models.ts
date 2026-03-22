@@ -115,6 +115,12 @@ export interface SwitchPortStats {
   l3Packets: number;
 }
 
+export interface SwitchVlanOption {
+  name: string;
+  vlanId?: number | null;
+  interfaceName?: string | null;
+}
+
 export interface SwitchDevice {
   id: string;
   hostname: string;
