@@ -308,3 +308,64 @@ export interface BandwidthPoint {
   inbound: number;
   outbound: number;
 }
+
+export interface SiteHistoryPoint {
+  siteId: string;
+  observedAt: string;
+  status: DeviceStatus;
+  wanStatus: 'online' | 'degraded' | 'offline';
+  clientCount: number;
+  switchCount: number;
+  apCount: number;
+  addressObjectCount: number;
+  latencyAvgMs: number | null;
+  latencyPacketLoss: number | null;
+  apiReachable: boolean;
+  lastSyncError: string | null;
+}
+
+export interface DeviceActionRecord {
+  id: string;
+  siteId: string;
+  targetId: string;
+  targetType: 'switch' | 'ap' | 'site';
+  action: string;
+  status: 'queued' | 'completed' | 'manual_required' | 'failed';
+  actorUsername: string;
+  payload: Record<string, string | boolean>;
+  message: string;
+  requestedAt: string;
+  completedAt: string | null;
+  result: Record<string, unknown> | null;
+}
+
+export interface TopologyNode {
+  id: string;
+  type: 'site' | 'switch' | 'ap' | 'client-group';
+  label: string;
+  status: DeviceStatus;
+  siteId: string;
+  meta: Record<string, string | number | null>;
+  x: number;
+  y: number;
+}
+
+export interface TopologyEdge {
+  id: string;
+  from: string;
+  to: string;
+  status: 'healthy' | 'warning' | 'critical' | 'offline';
+  label: string;
+}
+
+export interface TopologyGraph {
+  generatedAt: string;
+  nodes: TopologyNode[];
+  edges: TopologyEdge[];
+  summary: {
+    siteCount: number;
+    switchCount: number;
+    apCount: number;
+    clientGroupCount: number;
+  };
+}

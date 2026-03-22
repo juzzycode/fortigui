@@ -114,6 +114,9 @@ npm run build
 - Site onboarding and FortiGate summaries already flow through `server/routes/sites.js` and `src/services/api.ts`.
 - Site records support create, edit, and delete flows through the same `/api/sites` backend.
 - Live alert generation now flows through `/api/alerts`, combining site reachability, switch state, and AP health into a shared alert feed for the dashboard and alert center.
+- Persisted site history now flows through `/api/sites/:id/history`, storing scheduled snapshots of client counts, switch/AP counts, latency, and alert observations for trend views.
+- Live topology now flows through `/api/topology` and `/api/sites/:id/topology`, turning FortiGate-derived site, switch, AP, and client relationships into a rendered topology graph.
+- Device operations now flow through `/api/switches/:id/actions` and `/api/aps/:id/actions`, with backend validation, role checks, and persistent audit history exposed through `/api/events`.
 - Live derived profile catalogs now flow through `/api/profiles`, grouping observed switch, AP, SSID, VLAN, and port policy data by the selected site scope.
 - Live firmware compliance now flows through `/api/firmware`, organizing switch and AP versions into rollout-ready groups.
 - Authentication now flows through `/api/auth/*`, with session cookies protecting live inventory routes and `/api/users` handling operator management.
@@ -130,7 +133,8 @@ npm run build
 - The UI supports light and dark themes.
 - The UI now has a real login page, session-backed logout, and three enforced roles: `super_admin`, `site_admin`, and `read_only`.
 - Site detail now includes a config archive section with daily FortiGate backups, downloadable config files, and diffs between snapshot days.
-- Mock device actions like reboot, blink LED, port toggle, and profile assignment are routed through a service function so they can later call backend command endpoints.
+- Switch and AP action buttons now go through authenticated backend action endpoints, and every request is written into the shared event history feed.
+- The dashboard and site detail pages now use live topology graphs plus persisted site history instead of the earlier topology placeholder and purely point-in-time telemetry.
 - Tables, drawers, summary panels, and charts are reusable and structured for future expansion.
 - Gateway config caching is documented in `docs/GATEWAYS.md`.
 - The optional site admin username/password fields are stored today but not used for polling yet. They are reserved for future SSH or CLI-assisted collection flows, such as commands that can expose live PoE draw not present in the current REST endpoints.

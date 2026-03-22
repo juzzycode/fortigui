@@ -8,7 +8,7 @@ const demoSites = [
   { name: 'Seattle Warehouse', address: '301 Elliott Ave W, Seattle, WA', timezone: 'America/Los_Angeles', region: 'West' },
 ];
 
-export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiveService }) => {
+export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiveService, historyService, topologyService }) => {
   const router = express.Router();
 
   router.get('/', async (_request, response) => {
@@ -109,6 +109,41 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
     }
 
     response.json({ site: await fortiGateClient.summarizeSite(site) });
+  });
+
+  router.get('/:id/history', async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const site = await siteStore.getSiteById(request.params.id);
+    if (!site) {
+      response.status(404).json({ error: 'Site not found' });
+      return;
+    }
+
+    const limit = Number(request.query.limit);
+    const history = await historyService.getSiteHistory(request.params.id, {
+      limit: Number.isFinite(limit) && limit > 0 ? limit : 48,
+      refresh: request.query.refresh === 'true',
+    });
+
+    response.json(history);
+  });
+
+  router.get('/:id/topology', async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const site = await siteStore.getSiteById(request.params.id);
+    if (!site) {
+      response.status(404).json({ error: 'Site not found' });
+      return;
+    }
+
+    const topology = await topologyService.getTopology({ siteId: request.params.id });
+    response.json({ topology });
   });
 
   router.get('/:id/config-snapshots', async (request, response) => {

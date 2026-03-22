@@ -1,5 +1,5 @@
-import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, switches as demoSwitches, vlanProfiles } from '@/mocks/data';
-import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, ManagedUser, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SwitchDevice } from '@/types/models';
+import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, firmwareStatuses, portProfiles, switches as demoSwitches, vlanProfiles } from '@/mocks/data';
+import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, EventLog, ManagedUser, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, TopologyGraph } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const authRequiredEventName = 'edgeops:auth-required';
@@ -126,6 +126,16 @@ export const api = {
   },
   getSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites),
   getSiteById: async (id: string) => jsonRequest<{ site: Site }>(`/api/sites/${id}`).then((payload) => payload.site),
+  getSiteHistory: async (id: string, options?: { limit?: number; refresh?: boolean }) => {
+    const search = new URLSearchParams();
+    if (options?.limit) search.set('limit', String(options.limit));
+    if (options?.refresh) search.set('refresh', 'true');
+    return jsonRequest<{ metrics: SiteHistoryPoint[]; alerts: Alert[] }>(
+      `/api/sites/${encodeURIComponent(id)}/history${search.toString() ? `?${search.toString()}` : ''}`,
+    );
+  },
+  getSiteTopology: async (id: string) =>
+    jsonRequest<{ topology: TopologyGraph }>(`/api/sites/${encodeURIComponent(id)}/topology`).then((payload) => payload.topology),
   getSiteConfigSnapshots: async (siteId: string) =>
     jsonRequest<{ snapshots: SiteConfigSnapshot[] }>(`/api/sites/${encodeURIComponent(siteId)}/config-snapshots`).then((payload) => payload.snapshots),
   syncSiteConfigSnapshot: async (siteId: string, force = true) =>
@@ -173,6 +183,11 @@ export const api = {
       siteId && siteId !== 'all' ? `/api/switches?siteId=${encodeURIComponent(siteId)}` : '/api/switches',
     ).then((payload) => payload.switches),
   getSwitchById: async (id: string) => jsonRequest<{ switch: SwitchDevice }>(`/api/switches/${encodeURIComponent(id)}`).then((payload) => payload.switch),
+  runSwitchAction: async (id: string, action: string, payload?: Record<string, string | boolean>) =>
+    jsonRequest<{ action: DeviceActionRecord }>(`/api/switches/${encodeURIComponent(id)}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({ action, payload }),
+    }).then((result) => result.action),
   getAps: async (siteId?: string | 'all') =>
     jsonRequest<{ accessPoints: AccessPoint[] }>(
       siteId && siteId !== 'all' ? `/api/aps?siteId=${encodeURIComponent(siteId)}` : '/api/aps',
@@ -183,6 +198,11 @@ export const api = {
     ).then((payload) => payload.rogueAccessPoints),
   getApById: async (id: string) =>
     jsonRequest<{ accessPoint: AccessPoint }>(`/api/aps/${encodeURIComponent(id)}`).then((payload) => payload.accessPoint),
+  runApAction: async (id: string, action: string, payload?: Record<string, string | boolean>) =>
+    jsonRequest<{ action: DeviceActionRecord }>(`/api/aps/${encodeURIComponent(id)}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({ action, payload }),
+    }).then((result) => result.action),
   getClients: async (siteId?: string | 'all') =>
     jsonRequest<{ clients: Client[] }>(
       siteId && siteId !== 'all' ? `/api/clients?siteId=${encodeURIComponent(siteId)}` : '/api/clients',
@@ -212,9 +232,12 @@ export const api = {
     jsonRequest<{ deviceProfiles: typeof deviceProfiles; vlanProfiles: typeof vlanProfiles; portProfiles: typeof portProfiles }>(
       siteId && siteId !== 'all' ? `/api/profiles?siteId=${encodeURIComponent(siteId)}` : '/api/profiles',
     ).catch(() => delay({ deviceProfiles, vlanProfiles, portProfiles })),
-  getEventLogsByTarget: async (targetId: string) => delay(eventLogs.filter((entry) => entry.targetId === targetId)),
-  simulateDeviceAction: async (action: string, targetId: string, payload?: Record<string, string | boolean>) =>
-    delay({ success: true, action, targetId, payload, message: `${action} queued for ${targetId}` }, 450),
+  getTopology: async (siteId?: string | 'all') =>
+    jsonRequest<{ topology: TopologyGraph }>(
+      siteId && siteId !== 'all' ? `/api/topology?siteId=${encodeURIComponent(siteId)}` : '/api/topology',
+    ).then((payload) => payload.topology),
+  getEventLogsByTarget: async (targetId: string) =>
+    jsonRequest<{ events: EventLog[] }>(`/api/events?targetId=${encodeURIComponent(targetId)}`).then((payload) => payload.events),
 };
 
 export { ApiError };

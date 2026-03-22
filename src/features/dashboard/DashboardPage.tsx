@@ -6,18 +6,24 @@ import { StatCard } from '@/components/common/StatCard';
 import { LoadingState } from '@/components/common/States';
 import { UsageAreaChart } from '@/components/charts/UsageAreaChart';
 import { HealthDonut } from '@/components/charts/HealthDonut';
-import { TopologyPlaceholder } from '@/components/data-display/TopologyPlaceholder';
+import { TopologyCanvas } from '@/components/data-display/TopologyCanvas';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 import { formatNumber, formatRelativeTime } from '@/lib/utils';
+import type { TopologyGraph } from '@/types/models';
 
 export const DashboardPage = () => {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.getDashboard>> | null>(null);
+  const [topology, setTopology] = useState<TopologyGraph | null>(null);
   const { selectedSiteId } = useAppStore();
 
   useEffect(() => {
-    api.getDashboard(selectedSiteId).then(setData);
+    Promise.all([api.getDashboard(selectedSiteId), api.getTopology(selectedSiteId)])
+      .then(([dashboard, topologyGraph]) => {
+        setData(dashboard);
+        setTopology(topologyGraph);
+      });
   }, [selectedSiteId]);
 
   const healthBreakdown = useMemo(() => {
@@ -29,7 +35,7 @@ export const DashboardPage = () => {
     }));
   }, [data]);
 
-  if (!data) return <LoadingState label="Loading dashboard telemetry..." />;
+  if (!data || !topology) return <LoadingState label="Loading dashboard telemetry..." />;
 
   const offlineCount = [...data.switches, ...data.accessPoints].filter((device) => device.status === 'offline').length;
   const compliant = data.firmwareStatuses.filter((row) => row.compliance === 'compliant').length;
@@ -131,7 +137,10 @@ export const DashboardPage = () => {
         </Panel>
       </div>
 
-      <TopologyPlaceholder />
+      <TopologyCanvas
+        topology={topology}
+        subtitle="Live path map for the currently selected scope, including site edge, managed switches, APs, and client aggregates."
+      />
     </div>
   );
 };

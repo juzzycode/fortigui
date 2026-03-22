@@ -84,8 +84,9 @@ export const ApDetailPage = () => {
   if (device === null) return <ErrorState title="Access point not found" description="The requested device ID could not be found for any configured site." />;
 
   const runAction = async (action: string, payload?: Record<string, string | boolean>) => {
-    const result = await api.simulateDeviceAction(action, device.id, payload);
+    const result = await api.runApAction(device.id, action, payload);
     setMessage(result.message);
+    setEvents(await api.getEventLogsByTarget(id));
   };
 
   return (
@@ -93,7 +94,7 @@ export const ApDetailPage = () => {
       <PageHeader
         eyebrow="AP Detail"
         title={device.name}
-        description={`${device.model} at ${device.ip || 'management IP unavailable'}. Inventory, radios, SSIDs, and client counts are live from the FortiGate API.`}
+        description={`${device.model} at ${device.ip || 'management IP unavailable'}. Inventory, radios, SSIDs, and client counts are live from the FortiGate API, and operator actions now flow through the backend with audit history.`}
         actions={
           <>
             <ActionButton onClick={() => runAction('reboot-ap')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot AP</ActionButton>
@@ -165,7 +166,7 @@ export const ApDetailPage = () => {
         </div>
       </Panel>
 
-      <Panel title="Simulated Wireless Actions">
+      <Panel title="Operator Actions">
         <div className="flex flex-wrap gap-3">
           <ActionButton onClick={() => runAction('change-ap-name', { name: 'Conference AP East' })} disabled={!canOperate}>Change AP Name</ActionButton>
           <ActionButton onClick={() => runAction('toggle-radio', { radio: '5 GHz', enabled: false })} disabled={!canOperate}>Disable 5 GHz Radio</ActionButton>

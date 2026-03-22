@@ -5,17 +5,22 @@ import { serverConfig } from './config.js';
 import { clearSessionCookie, createAuthMiddleware } from './lib/auth.js';
 import { createAuthStore } from './lib/auth-store.js';
 import { createDatabase } from './lib/database.js';
+import { createDeviceActionService } from './lib/device-action-service.js';
 import { createFortiGateClient } from './lib/fortigate-client.js';
 import { createGatewayConfigService } from './lib/gateway-config-service.js';
 import { createGatewayRepository } from './lib/gateway-repository.js';
+import { createHistoryService } from './lib/history-service.js';
+import { createHistoryStore } from './lib/history-store.js';
 import { createInventoryService } from './lib/inventory-service.js';
 import { createSiteConfigArchiveService } from './lib/site-config-archive-service.js';
 import { createAlertService } from './lib/alert-service.js';
 import { createSiteStore } from './lib/site-store.js';
 import { createSetupStore } from './lib/setup-store.js';
+import { createTopologyService } from './lib/topology-service.js';
 import { createOpenApiDocument } from './openapi.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createAlertsRouter } from './routes/alerts.js';
+import { createEventsRouter } from './routes/events.js';
 import { createGatewayRouter } from './routes/gateways.js';
 import { createApsRouter } from './routes/aps.js';
 import { createClientsRouter } from './routes/clients.js';
@@ -24,6 +29,7 @@ import { createProfilesRouter } from './routes/profiles.js';
 import { createSetupRouter } from './routes/setup.js';
 import { createSitesRouter } from './routes/sites.js';
 import { createSwitchesRouter } from './routes/switches.js';
+import { createTopologyRouter } from './routes/topology.js';
 import { createUsersRouter } from './routes/users.js';
 
 const verboseLogging = process.argv.includes('-v') || process.argv.includes('--verbose');
@@ -39,6 +45,8 @@ const start = async () => {
   });
   const siteStore = createSiteStore({ db: sitesDb });
   await siteStore.init();
+  const historyStore = createHistoryStore({ db: sitesDb });
+  await historyStore.init();
   const authStore = await createAuthStore({
     db: authDb,
     sessionTtlHours: serverConfig.sessionTtlHours,
@@ -53,6 +61,9 @@ const start = async () => {
   const siteConfigArchiveService = createSiteConfigArchiveService({ siteStore });
   const inventoryService = createInventoryService({ siteStore, fortiGateClient });
   const alertService = createAlertService({ siteStore, fortiGateClient });
+  const historyService = createHistoryService({ siteStore, fortiGateClient, alertService, historyStore });
+  const topologyService = createTopologyService({ siteStore, fortiGateClient });
+  const deviceActionService = createDeviceActionService({ siteStore, fortiGateClient, historyStore });
   const gatewayConfigService = createGatewayConfigService({ repository });
   const openApiDocument = createOpenApiDocument({ port: serverConfig.port, setupFiles: serverConfig.setupFiles });
   const requireSession = createAuthMiddleware({ authStore });
@@ -139,7 +150,9 @@ const start = async () => {
           <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
           <li><a href="/api/auth/session">Current session</a> <code>GET /api/auth/session</code></li>
           <li><a href="/api/sites">Sites</a> <code>GET /api/sites</code></li>
+          <li><a href="/api/topology">Topology</a> <code>GET /api/topology</code></li>
           <li><a href="/api/sites">Site Config Archive</a> <code>GET /api/sites/:id/config-snapshots</code></li>
+          <li><a href="/api/events">Events</a> <code>GET /api/events</code></li>
           <li><a href="/api/alerts">Alerts</a> <code>GET /api/alerts</code></li>
           <li><a href="/api/profiles">Profiles</a> <code>GET /api/profiles</code></li>
           <li><a href="/api/firmware">Firmware</a> <code>GET /api/firmware</code></li>
@@ -172,19 +185,25 @@ const start = async () => {
         setupWizard: '/api/setup/wizard',
         sites: '/api/sites',
         siteDetail: '/api/sites/:id',
+        siteHistory: '/api/sites/:id/history',
+        siteTopology: '/api/sites/:id/topology',
         siteConfigSnapshots: '/api/sites/:id/config-snapshots',
         siteConfigSync: '/api/sites/:id/config-snapshots/sync',
         siteConfigDownload: '/api/sites/:id/config-snapshots/:snapshotId/download',
         siteConfigDiff: '/api/sites/:id/config-diffs',
         loadDemoSites: '/api/sites/load-demo',
         alerts: '/api/alerts',
+        events: '/api/events',
         profiles: '/api/profiles',
         firmware: '/api/firmware',
+        topology: '/api/topology',
         switches: '/api/switches',
         switchDetail: '/api/switches/:id',
+        switchActions: '/api/switches/:id/actions',
         accessPoints: '/api/aps',
         rogueAccessPoints: '/api/aps/rogues',
         accessPointDetail: '/api/aps/:id',
+        accessPointActions: '/api/aps/:id/actions',
         clients: '/api/clients',
         gateways: '/api/gateways',
         gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
@@ -216,12 +235,14 @@ const start = async () => {
   });
   app.use('/api', requireSession);
   app.use('/api/setup', createSetupRouter({ setupStore }));
-  app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient, siteConfigArchiveService }));
+  app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient, siteConfigArchiveService, historyService, topologyService }));
   app.use('/api/alerts', createAlertsRouter({ alertService }));
+  app.use('/api/events', createEventsRouter({ historyStore }));
   app.use('/api/profiles', createProfilesRouter({ inventoryService }));
   app.use('/api/firmware', createFirmwareRouter({ inventoryService }));
-  app.use('/api/switches', createSwitchesRouter({ siteStore, fortiGateClient }));
-  app.use('/api/aps', createApsRouter({ siteStore, fortiGateClient }));
+  app.use('/api/topology', createTopologyRouter({ topologyService }));
+  app.use('/api/switches', createSwitchesRouter({ siteStore, fortiGateClient, deviceActionService }));
+  app.use('/api/aps', createApsRouter({ siteStore, fortiGateClient, deviceActionService }));
   app.use('/api/clients', createClientsRouter({ siteStore, fortiGateClient }));
   app.use('/api/users', createUsersRouter({ authStore, siteStore }));
 
@@ -241,6 +262,7 @@ const start = async () => {
   });
 
   siteConfigArchiveService.startScheduler();
+  historyService.startScheduler();
 
   server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {

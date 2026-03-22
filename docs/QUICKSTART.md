@@ -179,5 +179,6 @@ To connect real backend APIs later:
 
 - Theme switching is already wired in.
 - Role enforcement is now real for `super_admin`, `site_admin`, and `read_only`.
-- Device actions like reboot and blink LED are simulated through the service layer.
+- Device actions like reboot and blink LED now go through authenticated backend endpoints with audit history and live target validation.
+- Site detail now includes persisted history and a live topology view sourced from the backend.
 - The optional site admin username/password fields are reserved for future SSH or CLI-assisted collection and are not used by the current REST polling flow.

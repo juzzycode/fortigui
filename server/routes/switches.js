@@ -1,7 +1,7 @@
 import express from 'express';
-import { ensureSiteAccess, getScopedSiteId } from '../lib/auth.js';
+import { ensureSiteAccess, getScopedSiteId, requireOperator } from '../lib/auth.js';
 
-export const createSwitchesRouter = ({ siteStore, fortiGateClient }) => {
+export const createSwitchesRouter = ({ siteStore, fortiGateClient, deviceActionService }) => {
   const router = express.Router();
 
   router.get('/', async (request, response) => {
@@ -43,6 +43,32 @@ export const createSwitchesRouter = ({ siteStore, fortiGateClient }) => {
     }
 
     response.status(404).json({ error: 'Switch not found' });
+  });
+
+  router.post('/:id/actions', requireOperator, async (request, response) => {
+    const scopedSiteId = request.auth?.user?.siteId ?? null;
+    const siteId = request.params.id.split('--')[0];
+
+    if (scopedSiteId && siteId !== scopedSiteId) {
+      response.status(403).json({ error: 'This account is scoped to a different site' });
+      return;
+    }
+
+    const action = typeof request.body?.action === 'string' ? request.body.action : '';
+    if (!action) {
+      response.status(400).json({ error: 'action is required' });
+      return;
+    }
+
+    const result = await deviceActionService.execute({
+      targetType: 'switch',
+      targetId: request.params.id,
+      action,
+      payload: request.body?.payload ?? null,
+      actorUsername: request.auth.user.username,
+    });
+
+    response.status(201).json({ action: result });
   });
 
   return router;

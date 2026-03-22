@@ -36,13 +36,14 @@ export const SwitchDetailPage = () => {
   if (device === null) return <ErrorState title="Switch not found" description="The requested device ID does not exist in the live switch inventory." />;
 
   const runAction = async (action: string, payload?: Record<string, string | boolean>) => {
-    const result = await api.simulateDeviceAction(action, device.id, payload);
+    const result = await api.runSwitchAction(device.id, action, payload);
     setMessage(result.message);
+    setEvents(await api.getEventLogsByTarget(id));
   };
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Switch Detail" title={device.hostname} description={`${device.model}${device.managementIp ? ` at ${device.managementIp}` : ''}. Inventory and port state now come from the FortiGate switch controller API; actions are still simulated for now.`} actions={<><ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot</ActionButton><ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}><Lightbulb className="mr-2 h-4 w-4" />Blink LED</ActionButton><ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Sync Config</ActionButton></>} />
+      <PageHeader eyebrow="Switch Detail" title={device.hostname} description={`${device.model}${device.managementIp ? ` at ${device.managementIp}` : ''}. Inventory and port state come from the FortiGate switch controller API, and operator actions now flow through the backend action log with role checks and audit history.`} actions={<><ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot</ActionButton><ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}><Lightbulb className="mr-2 h-4 w-4" />Blink LED</ActionButton><ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Sync Config</ActionButton></>} />
       {message ? <div className="rounded-2xl border border-accent/25 bg-accent-muted px-4 py-3 text-sm font-medium text-accent">{message}</div> : null}
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Summary">
@@ -116,7 +117,7 @@ export const SwitchDetailPage = () => {
           </div>
         </Panel>
       </div>
-      <Panel title="Simulated Port Actions" subtitle="UI-only actions structured so they can later call device command APIs.">
+      <Panel title="Operator Actions" subtitle="These actions are now sent through the authenticated backend, validated against live inventory, and recorded in the event history.">
         <div className="flex flex-wrap gap-3">
           <ActionButton onClick={() => runAction('change-port-description', { port: '1', description: 'Reception desk' })} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Change Port Description</ActionButton>
           <ActionButton onClick={() => runAction('toggle-port', { port: '4', enabled: false })} disabled={!canOperate}><Power className="mr-2 h-4 w-4" />Disable Port 4</ActionButton>

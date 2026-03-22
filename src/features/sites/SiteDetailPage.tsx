@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import { Cable, Download, FileClock, Fingerprint, GitCompareArrows, Globe2, KeyRound, LoaderCircle, MapPinned, RefreshCcw, ShieldCheck, TimerReset, Waypoints } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { SiteHistoryChart } from '@/components/charts/SiteHistoryChart';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { TopologyCanvas } from '@/components/data-display/TopologyCanvas';
 import { api } from '@/services/api';
-import type { Site, SiteConfigDiff, SiteConfigSnapshot } from '@/types/models';
+import type { Alert, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, TopologyGraph } from '@/types/models';
 
 export const SiteDetailPage = () => {
   const { id = '' } = useParams();
@@ -19,9 +21,20 @@ export const SiteDetailPage = () => {
   const [syncingSnapshot, setSyncingSnapshot] = useState(false);
   const [selectedToSnapshotId, setSelectedToSnapshotId] = useState<string>('');
   const [selectedFromSnapshotId, setSelectedFromSnapshotId] = useState<string>('');
+  const [history, setHistory] = useState<SiteHistoryPoint[]>([]);
+  const [historicalAlerts, setHistoricalAlerts] = useState<Alert[]>([]);
+  const [topology, setTopology] = useState<TopologyGraph | null>(null);
 
   useEffect(() => {
     api.getSiteById(id).then(setSite).catch(() => setSite(null));
+    api.getSiteHistory(id, { limit: 72 }).then((payload) => {
+      setHistory(payload.metrics);
+      setHistoricalAlerts(payload.alerts);
+    }).catch(() => {
+      setHistory([]);
+      setHistoricalAlerts([]);
+    });
+    api.getSiteTopology(id).then(setTopology).catch(() => setTopology(null));
   }, [id]);
 
   const refreshConfigArchive = async (preferredToSnapshotId?: string, preferredFromSnapshotId?: string) => {
@@ -186,6 +199,36 @@ export const SiteDetailPage = () => {
           )}
           <div className="mt-4 rounded-3xl bg-soft p-4 text-sm text-muted">
             The backend currently queries FortiGate system status and firewall address objects. That gives us a reliable live foothold before we expand into interface, DHCP, VPN, and policy inventory calls.
+          </div>
+        </Panel>
+      </div>
+
+      {topology ? <TopologyCanvas topology={topology} title="Site Topology" subtitle="Live relationships between this FortiGate site, managed switches, APs, and client aggregation points." /> : null}
+
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <Panel title="Historical Signals" subtitle="Persisted site snapshots collected by the backend scheduler so you can compare client load, device counts, and latency across the day.">
+          {history.length ? (
+            <SiteHistoryChart data={history} />
+          ) : (
+            <ErrorState title="No history yet" description="The history collector has not saved enough site snapshots yet to draw a trend line." />
+          )}
+        </Panel>
+        <Panel title="Alert History" subtitle="Persisted alert observations for this site, deduplicated by hour.">
+          <div className="space-y-3">
+            {historicalAlerts.length ? (
+              historicalAlerts.slice(0, 8).map((alert) => (
+                <div key={alert.id} className="rounded-2xl border border-border bg-soft p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <StatusBadge value={alert.severity} type="severity" />
+                    <span className="text-xs text-muted">{new Date(alert.timestamp).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-text">{alert.title}</p>
+                  <p className="mt-2 text-sm text-muted">{alert.description}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No persisted alerts yet for this site.</div>
+            )}
           </div>
         </Panel>
       </div>

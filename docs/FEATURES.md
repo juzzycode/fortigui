@@ -20,7 +20,8 @@ The dashboard includes:
 - Firmware compliance snapshot
 - PoE usage summary
 - SSID distribution summary
-- Topology placeholder
+- Live topology graph
+- Persisted fleet signal history
 
 ## Switch Management
 
@@ -38,7 +39,7 @@ Implemented capabilities:
 - VLAN and neighbor view
 - Event history
 - Config summary
-- Simulated actions:
+- Backend-audited operator actions:
   - reboot
   - blink LED
   - sync config
@@ -60,7 +61,7 @@ Implemented capabilities:
 - Neighbor AP view
 - Event history
 - Config summary
-- Simulated actions:
+- Backend-audited operator actions:
   - reboot AP
   - blink LED
   - rename AP
@@ -78,6 +79,9 @@ Implemented capabilities:
 - Local switch summary
 - Local AP summary
 - Local alerts
+- Live topology section
+- Persisted historical chart for counts and latency
+- Daily config archive and diff history
 - Map placeholder for future geospatial views
 
 ## Clients
@@ -160,6 +164,8 @@ Shared platform features already in place:
 - Real login page and session-backed logout
 - Cookie-based API session enforcement
 - SQLite-backed operator database
+- Persisted site metric and alert history
+- Shared event/audit history feed for device actions
 - Dark and light theme support
 - Responsive desktop-first layout
 - Mobile navigation support
@@ -173,8 +179,6 @@ Shared platform features already in place:
 - Global command palette behavior
 - Live websocket updates
 - Table pagination and server-side filtering
-- Real topology graph
 - Map integration
-- Audit logging
 - Config diffing
 - Firmware rollout orchestration
