@@ -56,9 +56,10 @@ export const FirmwarePage = () => {
             {item.deviceName ?? item.deviceId}
           </Link>
           <p className="text-xs uppercase tracking-wide text-muted">{item.deviceType}</p>
-          <p className="mt-1 text-xs text-muted">
-            {item.current} {'->'} {item.target}
-          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span className="rounded-full bg-canvas px-2 py-1 text-[11px] font-medium text-text">Current: {item.current}</span>
+            <span className="rounded-full bg-canvas px-2 py-1 text-[11px] font-medium text-text">Target: {item.target}</span>
+          </div>
         </div>
       ),
     },
@@ -67,8 +68,8 @@ export const FirmwarePage = () => {
       header: 'Site',
       render: (item) => item.siteName ?? item.siteId ?? 'Unknown',
     },
-    { key: 'current', header: 'Current', render: (item) => item.current },
-    { key: 'target', header: 'Target', render: (item) => item.target },
+    { key: 'current', header: 'Current Version', render: (item) => item.current },
+    { key: 'target', header: 'Target Version', render: (item) => item.target },
     { key: 'compliance', header: 'Compliance', render: (item) => <StatusBadge value={item.compliance} /> },
     { key: 'group', header: 'Rollout Group', render: (item) => item.rolloutGroup },
     { key: 'eligible', header: 'Eligible', render: (item) => (item.eligible ? 'Yes' : 'No') },

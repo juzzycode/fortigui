@@ -222,9 +222,13 @@ const deriveStatusFromAp = (item, clients) => {
   if (item.admin !== 'enable') return 'offline';
 
   const activeRadioCount = [item['radio-1'], item['radio-2'], item['radio-3'], item['radio-4']].filter((radio) => String(radio?.band || '').trim()).length;
-  if (!activeRadioCount) return 'offline';
-
   const lowHealthClients = clients.filter((client) => client.health === 'poor').length;
+  if (clients.length > 0) {
+    return lowHealthClients >= 3 ? 'warning' : 'healthy';
+  }
+
+  if (!activeRadioCount) return 'warning';
+
   if (lowHealthClients >= 3) return 'warning';
 
   if (clients.length === 0 && item['wtp-mode'] === 'remote') return 'warning';
