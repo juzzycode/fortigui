@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 import type { Site } from '@/types/models';
+import { EDGEOPS_VERSION } from '@/version';
 
 const navItems = [
   ['Dashboard', '/dashboard'],
@@ -115,8 +116,8 @@ export const AppShell = ({ children }: PropsWithChildren) => {
             ))}
           </nav>
           <div className="mt-auto rounded-3xl border border-border bg-soft p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Live update simulation</p>
-            <p className="mt-2 text-sm text-text">Telemetry refreshes every 12 seconds so widgets feel closer to real operations tooling.</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Version</p>
+            <p className="mt-2 text-sm font-medium text-text">EdgeOps Cloud {EDGEOPS_VERSION}</p>
           </div>
         </aside>
 
