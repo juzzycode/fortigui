@@ -92,9 +92,9 @@ npm run build
 - `src/features`
   - Page-oriented feature modules for dashboard, switches, APs, sites, clients, alerts, profiles, firmware, and settings.
 - `src/mocks`
-  - Seed data for switches, APs, clients, alerts, firmware, profiles, and event logs plus optional demo sites.
+  - Seed data for demo fallback behavior plus optional demo sites where live inventory is not available.
 - `src/services`
-  - Async API service functions with live site calls and mock inventory modules for the rest of the UI.
+  - Async API service functions that bridge the frontend to live site, alert, profile, and firmware routes plus demo fallbacks.
 - `src/store`
   - Lightweight global UI state for theme, role, site selection, command palette state, and live refresh ticks.
 - `src/types`
@@ -105,6 +105,8 @@ npm run build
 - Site onboarding and FortiGate summaries already flow through `server/routes/sites.js` and `src/services/api.ts`.
 - Site records support create, edit, and delete flows through the same `/api/sites` backend.
 - Live alert generation now flows through `/api/alerts`, combining site reachability, switch state, and AP health into a shared alert feed for the dashboard and alert center.
+- Live derived profile catalogs now flow through `/api/profiles`, grouping observed switch, AP, SSID, VLAN, and port policy data by the selected site scope.
+- Live firmware compliance now flows through `/api/firmware`, organizing switch and AP versions into rollout-ready groups.
 - Expand the FortiGate client in `server/lib/fortigate-client.js` with more endpoints as device inventory moves off mock data.
 - Use `server/index.js` plus the SQLite-backed gateway cache for real firewall or gateway config retrieval.
 - Keep page components unchanged where possible by preserving return shapes from the mock service layer.

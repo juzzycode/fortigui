@@ -12,7 +12,7 @@ EdgeOps Cloud is a frontend-first network management UI for:
 - Profiles
 - Firmware lifecycle
 
-The site onboarding flow now uses real backend calls, while the broader switch, AP, client, and alert modules still use a mock async service layer so they can be swapped to real APIs incrementally.
+The site onboarding flow, live inventory views, alerts, profiles, and firmware lifecycle pages now use backend API calls, with demo data still available as a fallback for empty environments.
 
 ## Prerequisites
 
@@ -107,9 +107,9 @@ npm run dev -- --host 0.0.0.0
 - `src/features`
   - Page-level modules
 - `src/mocks`
-  - Seed data
+  - Demo fallback seed data
 - `src/services`
-  - Mock API functions
+  - Frontend API client and backend integration helpers
 - `src/store`
   - Global UI state
 - `src/types`

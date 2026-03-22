@@ -115,7 +115,8 @@ Implemented capabilities:
 - Device profiles
 - VLAN profiles
 - Port profiles
-- Mock production-style catalog layout for future CRUD expansion
+- Live derived profile catalog based on current switch, AP, SSID, VLAN, and port assignments
+- Site-aware filtering through the global site selector
 
 Planned next step:
 
@@ -129,6 +130,7 @@ Implemented capabilities:
 - Current vs target version table
 - Upgrade group view
 - Eligibility indicators
+- Live site-aware compliance records for switches and APs
 
 Planned next step:
 

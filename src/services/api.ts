@@ -124,8 +124,16 @@ export const api = {
       .then((payload) => payload.alerts)
       .catch(() => delay(alerts));
   },
-  getFirmwareStatuses: async () => delay(firmwareStatuses),
-  getProfiles: async () => delay({ deviceProfiles, vlanProfiles, portProfiles }),
+  getFirmwareStatuses: async (siteId?: string | 'all') =>
+    jsonRequest<{ firmware: typeof firmwareStatuses }>(
+      siteId && siteId !== 'all' ? `/api/firmware?siteId=${encodeURIComponent(siteId)}` : '/api/firmware',
+    )
+      .then((payload) => payload.firmware)
+      .catch(() => delay(firmwareStatuses)),
+  getProfiles: async (siteId?: string | 'all') =>
+    jsonRequest<{ deviceProfiles: typeof deviceProfiles; vlanProfiles: typeof vlanProfiles; portProfiles: typeof portProfiles }>(
+      siteId && siteId !== 'all' ? `/api/profiles?siteId=${encodeURIComponent(siteId)}` : '/api/profiles',
+    ).catch(() => delay({ deviceProfiles, vlanProfiles, portProfiles })),
   getEventLogsByTarget: async (targetId: string) => delay(eventLogs.filter((entry) => entry.targetId === targetId)),
   simulateDeviceAction: async (action: string, targetId: string, payload?: Record<string, string | boolean>) =>
     delay({ success: true, action, targetId, payload, message: `${action} queued for ${targetId}` }, 450),

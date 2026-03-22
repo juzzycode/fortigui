@@ -13,6 +13,9 @@ export const statusTone: Record<DeviceStatus, string> = {
 export const extendedStatusTone: Record<string, string> = {
   ...statusTone,
   inactive: 'bg-slate-500/15 text-slate-400',
+  compliant: 'bg-success/15 text-success',
+  pending: 'bg-warning/15 text-warning',
+  blocked: 'bg-danger/15 text-danger',
 };
 
 export const severityTone: Record<Severity, string> = {

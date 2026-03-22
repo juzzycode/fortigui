@@ -293,6 +293,98 @@ const examples = {
       },
     ],
   },
+  deviceProfile: {
+    id: 'switch:default',
+    type: 'switch',
+    name: 'Default',
+    description: 'Derived from live FortiGate managed-switch inventory.',
+    assignedCount: 2,
+    version: 'Managed by FortiGate',
+  },
+  vlanProfile: {
+    id: 'vlan:FortiAP',
+    name: 'FortiAP',
+    vlanId: 0,
+    purpose: 'Observed on managed switch ports.',
+    qos: 'access',
+  },
+  portProfile: {
+    id: 'default',
+    name: 'Default',
+    poeMode: 'auto',
+    voiceVlan: 'not specified',
+    accessVlan: 'FortiAP',
+    stormControl: 'Inherited from FortiGate policy',
+  },
+  profileCatalog: {
+    deviceProfiles: [
+      {
+        id: 'switch:default',
+        type: 'switch',
+        name: 'Default',
+        description: 'Derived from live FortiGate managed-switch inventory.',
+        assignedCount: 2,
+        version: 'Managed by FortiGate',
+      },
+      {
+        id: 'ap:FAP441K-default',
+        type: 'ap',
+        name: 'FAP441K Default',
+        description: 'Derived from live FortiGate AP controller inventory.',
+        assignedCount: 3,
+        version: 'Managed by FortiGate',
+      },
+    ],
+    vlanProfiles: [
+      {
+        id: 'vlan:FortiAP',
+        name: 'FortiAP',
+        vlanId: 0,
+        purpose: 'Observed on managed switch ports.',
+        qos: 'access',
+      },
+    ],
+    portProfiles: [
+      {
+        id: 'default',
+        name: 'Default',
+        poeMode: 'auto',
+        voiceVlan: 'not specified',
+        accessVlan: 'FortiAP',
+        stormControl: 'Inherited from FortiGate policy',
+      },
+    ],
+  },
+  firmwareStatus: {
+    id: 'fw-site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+    deviceType: 'switch',
+    deviceId: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+    deviceName: 'S426EFTF21001195',
+    siteId: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+    siteName: 'Denver Branch',
+    current: 'Managed by FortiGate',
+    target: 'Managed by FortiGate',
+    compliance: 'compliant',
+    eligible: true,
+    rolloutGroup: 'Mountain Wave',
+  },
+  firmwareList: {
+    firmware: [
+      {
+        id: 'fw-site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+        deviceType: 'switch',
+        deviceId: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+        deviceName: 'S426EFTF21001195',
+        siteId: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+        siteName: 'Denver Branch',
+        current: 'Managed by FortiGate',
+        target: 'Managed by FortiGate',
+        compliance: 'compliant',
+        eligible: true,
+        rolloutGroup: 'Mountain Wave',
+      },
+    ],
+  },
   setupStatus: {
     complete: false,
     checks: [
@@ -711,6 +803,58 @@ const components = {
         },
       },
       example: examples.alert,
+    },
+    DeviceProfile: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        type: { type: 'string', enum: ['switch', 'ap', 'ssid'] },
+        name: { type: 'string' },
+        description: { type: 'string' },
+        assignedCount: { type: 'integer' },
+        version: { type: 'string' },
+      },
+      example: examples.deviceProfile,
+    },
+    VLANProfile: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        vlanId: { type: 'integer' },
+        purpose: { type: 'string' },
+        qos: { type: 'string' },
+      },
+      example: examples.vlanProfile,
+    },
+    PortProfile: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        poeMode: { type: 'string' },
+        voiceVlan: { type: 'string' },
+        accessVlan: { type: 'string' },
+        stormControl: { type: 'string' },
+      },
+      example: examples.portProfile,
+    },
+    FirmwareStatus: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        deviceType: { type: 'string', enum: ['switch', 'ap'] },
+        deviceId: { type: 'string' },
+        deviceName: { type: 'string', nullable: true },
+        siteId: { type: 'string', nullable: true },
+        siteName: { type: 'string', nullable: true },
+        current: { type: 'string' },
+        target: { type: 'string' },
+        compliance: { type: 'string', enum: ['compliant', 'pending', 'blocked'] },
+        eligible: { type: 'boolean' },
+        rolloutGroup: { type: 'string' },
+      },
+      example: examples.firmwareStatus,
     },
     Gateway: {
       type: 'object',
@@ -1435,6 +1579,90 @@ export const createOpenApiDocument = ({ port }) => ({
                 examples: {
                   default: {
                     value: examples.alertList,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/profiles': {
+      get: {
+        tags: ['Profiles'],
+        summary: 'List derived live profiles',
+        parameters: [
+          {
+            name: 'siteId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            example: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Derived live profile catalog',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    deviceProfiles: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/DeviceProfile' },
+                    },
+                    vlanProfiles: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/VLANProfile' },
+                    },
+                    portProfiles: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/PortProfile' },
+                    },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: examples.profileCatalog,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/firmware': {
+      get: {
+        tags: ['Firmware'],
+        summary: 'List live firmware compliance records',
+        parameters: [
+          {
+            name: 'siteId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            example: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Firmware compliance view',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    firmware: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/FirmwareStatus' },
+                    },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: examples.firmwareList,
                   },
                 },
               },

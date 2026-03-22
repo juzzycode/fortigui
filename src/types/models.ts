@@ -193,6 +193,9 @@ export interface FirmwareStatus {
   id: string;
   deviceType: 'switch' | 'ap';
   deviceId: string;
+  deviceName?: string;
+  siteId?: string;
+  siteName?: string;
   current: string;
   target: string;
   compliance: 'compliant' | 'pending' | 'blocked';
