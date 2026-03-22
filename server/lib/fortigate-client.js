@@ -308,6 +308,66 @@ const mapSsidsFromAp = (item, clients) => {
   return ssids;
 };
 
+const summarizeObservedRadio = (clients, radioNumber) => {
+  const radioClients = clients.filter((client) => Number(client.wtp_radio) === radioNumber);
+  if (!radioClients.length) return null;
+
+  const representative = radioClients[0];
+  const channelCounts = new Map();
+  for (const client of radioClients) {
+    const channel = parseMaybeNumber(client.channel);
+    if (!Number.isFinite(channel)) continue;
+    channelCounts.set(channel, (channelCounts.get(channel) ?? 0) + 1);
+  }
+
+  const primaryChannel =
+    [...channelCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ??
+    parseMaybeNumber(representative.channel) ??
+    0;
+
+  return {
+    id: `radio-${radioNumber}`,
+    band: toRadioBand(representative.radio_type),
+    channel: primaryChannel,
+    txPower: 'Unavailable',
+    utilization: estimateUtilization(clients, radioNumber),
+    status: 'up',
+  };
+};
+
+const mapObservedRadiosFromClients = (clients) =>
+  uniqueBy(
+    clients
+      .map((client) => summarizeObservedRadio(clients, Number(client.wtp_radio)))
+      .filter(Boolean),
+    (radio) => radio.id,
+  );
+
+const humanizeSecurity = (value) =>
+  String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+
+const mapSsidsFromClients = (item, clients) =>
+  uniqueBy(
+    clients
+      .map((client) => {
+        const name = client.ssid || client.vap_name;
+        if (!name) return null;
+
+        return {
+          id: `${item['wtp-id']}-${name}`,
+          name,
+          vlan: Number.isFinite(parseMaybeNumber(client.vlan_id)) && Number(client.vlan_id) > 0 ? `VLAN ${client.vlan_id}` : 'FortiGate WLAN',
+          authMode: humanizeSecurity(client.security_str) || 'Observed from client telemetry',
+          clientCount: clients.filter((entry) => (entry.ssid || entry.vap_name) === name).length,
+        };
+      })
+      .filter(Boolean),
+    (ssid) => ssid.id,
+  );
+
 const shouldUseCachedWirelessClients = (entry) =>
   Boolean(entry) && Date.now() - entry.fetchedAt < wirelessClientsCacheTtlMs;
 
@@ -629,10 +689,12 @@ const mapManagedAccessPoint = (site, item, clients, neighborNames = []) => {
   const targetFirmware =
     extractStatusField(item, ['firmware-provision-version', 'firmware-provision', 'staged-image-version']) ||
     (item['firmware-provision-latest'] === 'disable' ? 'No staged target' : 'Latest staged target');
-  const radios = ['radio-1', 'radio-2', 'radio-3', 'radio-4']
+  const configuredRadios = ['radio-1', 'radio-2', 'radio-3', 'radio-4']
     .map((radioKey) => mapApRadio(radioKey, item[radioKey], clients))
     .filter((radio) => radio.status === 'up');
-  const ssids = mapSsidsFromAp(item, clients);
+  const radios = configuredRadios.length ? configuredRadios : mapObservedRadiosFromClients(clients);
+  const configuredSsids = mapSsidsFromAp(item, clients);
+  const ssids = configuredSsids.length ? configuredSsids : mapSsidsFromClients(item, clients);
   const managementIp = clients[0]?.wtp_ip || clients[0]?.wtp_control_ip || '';
   const status = deriveStatusFromAp(item, clients);
 
