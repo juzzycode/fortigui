@@ -743,12 +743,33 @@ export const createFortiGateClient = ({ siteStore }) => ({
     }
 
     try {
-      const [statusPayload, addressPayload] = await Promise.all([
+      const [statusResult, addressResult, switchResult, accessPointResult, clientResult] = await Promise.allSettled([
         requestJson(`${fortiGateBaseUrl(workingSite.fortigate_ip)}/api/v2/monitor/system/status`, workingSite.fortigate_api_key),
         requestJson(`${fortiGateBaseUrl(workingSite.fortigate_ip)}/api/v2/cmdb/firewall/address?format=name`, workingSite.fortigate_api_key),
+        requestJson(`${fortiGateBaseUrl(workingSite.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`, workingSite.fortigate_api_key),
+        requestJson(`${fortiGateBaseUrl(workingSite.fortigate_ip)}/api/v2/cmdb/wireless-controller/wtp`, workingSite.fortigate_api_key),
+        requestJson(`${fortiGateBaseUrl(workingSite.fortigate_ip)}/api/v2/monitor/user/device/query`, workingSite.fortigate_api_key),
       ]);
 
+      if (statusResult.status === 'rejected') {
+        throw statusResult.reason;
+      }
+
+      if (addressResult.status === 'rejected') {
+        throw addressResult.reason;
+      }
+
+      const statusPayload = statusResult.value;
+      const addressPayload = addressResult.value;
       const addressResults = Array.isArray(addressPayload.results) ? addressPayload.results : [];
+      const switchCount =
+        switchResult.status === 'fulfilled' && Array.isArray(switchResult.value.results) ? switchResult.value.results.length : 0;
+      const apCount =
+        accessPointResult.status === 'fulfilled' && Array.isArray(accessPointResult.value.results) ? accessPointResult.value.results.length : 0;
+      const clientCount =
+        clientResult.status === 'fulfilled' && Array.isArray(clientResult.value.results)
+          ? clientResult.value.results.filter((item) => !isInfrastructureDevice(item)).length
+          : 0;
       const fortigateVersion = extractFromStatusPayload(statusPayload, ['version', 'firmware', 'build', 'major']);
       const fortigateSerial = extractFromStatusPayload(statusPayload, ['serial', 'serial_number', 'serial-no', 'sn']);
       const fortigateName = extractFromStatusPayload(statusPayload, ['hostname', 'name']);
@@ -760,6 +781,9 @@ export const createFortiGateClient = ({ siteStore }) => ({
         fortigateName: fortigateName || workingSite.fortigate_name || workingSite.name,
         fortigateVersion,
         fortigateSerial,
+        clientCount,
+        switchCount,
+        apCount,
         addressObjectCount: addressResults.length,
         apiReachable: true,
         latencyAvgMs: latency.avgMs,
