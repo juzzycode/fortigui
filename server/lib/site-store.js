@@ -34,6 +34,23 @@ export const createSiteStore = ({ db }) => ({
         updated_at TEXT NOT NULL
       )
     `);
+
+    const columns = await db.all(`PRAGMA table_info(sites)`);
+    const columnNames = new Set(columns.map((column) => String(column.name)));
+    const migrations = [
+      ['latency_avg_ms', 'ALTER TABLE sites ADD COLUMN latency_avg_ms REAL'],
+      ['latency_min_ms', 'ALTER TABLE sites ADD COLUMN latency_min_ms REAL'],
+      ['latency_max_ms', 'ALTER TABLE sites ADD COLUMN latency_max_ms REAL'],
+      ['latency_packet_loss', 'ALTER TABLE sites ADD COLUMN latency_packet_loss REAL'],
+      ['latency_checked_at', 'ALTER TABLE sites ADD COLUMN latency_checked_at TEXT'],
+      ['latency_error', 'ALTER TABLE sites ADD COLUMN latency_error TEXT'],
+    ];
+
+    for (const [columnName, sql] of migrations) {
+      if (!columnNames.has(columnName)) {
+        await db.exec(sql);
+      }
+    }
   },
 
   async listSites() {
@@ -101,5 +118,26 @@ export const createSiteStore = ({ db }) => ({
     );
 
     return this.getSiteById(row.id);
+  },
+
+  async updateLatencyCache(id, latency) {
+    await db.run(
+      `
+        UPDATE sites
+        SET latency_avg_ms = ?, latency_min_ms = ?, latency_max_ms = ?, latency_packet_loss = ?,
+            latency_checked_at = ?, latency_error = ?, updated_at = ?
+        WHERE id = ?
+      `,
+      latency.avgMs,
+      latency.minMs,
+      latency.maxMs,
+      latency.packetLoss,
+      latency.checkedAt,
+      latency.error,
+      nowIso(),
+      id,
+    );
+
+    return this.getSiteById(id);
   },
 });

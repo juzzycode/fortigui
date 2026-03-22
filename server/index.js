@@ -29,7 +29,7 @@ const start = async () => {
     db,
     secret: serverConfig.secret,
   });
-  const fortiGateClient = createFortiGateClient();
+  const fortiGateClient = createFortiGateClient({ siteStore });
   const gatewayConfigService = createGatewayConfigService({ repository });
   const openApiDocument = createOpenApiDocument({ port: serverConfig.port, setupFiles: serverConfig.setupFiles });
 

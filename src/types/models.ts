@@ -21,6 +21,12 @@ export interface Site {
   addressObjectCount?: number;
   apiReachable?: boolean;
   lastSyncError?: string | null;
+  latencyAvgMs?: number | null;
+  latencyMinMs?: number | null;
+  latencyMaxMs?: number | null;
+  latencyPacketLoss?: number | null;
+  latencyCheckedAt?: string | null;
+  latencyError?: string | null;
   source?: 'live' | 'demo';
 }
 

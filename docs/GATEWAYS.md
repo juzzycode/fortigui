@@ -5,6 +5,7 @@
 The backend scaffold supports storing firewall or gateway connection metadata, attaching multiple API keys per gateway, and downloading each gateway configuration into a local SQLite cache.
 
 It also includes site onboarding endpoints for storing site metadata and FortiGate connection details.
+Site summaries now cache a `ping` probe as well, so the UI can show average latency, packet loss, and the last ping timestamp alongside FortiGate API reachability.
 
 ## Storage Model
 

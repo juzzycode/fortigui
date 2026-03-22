@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Cable, Fingerprint, Globe2, KeyRound, MapPinned, ShieldCheck, Waypoints } from 'lucide-react';
+import { Cable, Fingerprint, Globe2, KeyRound, MapPinned, ShieldCheck, TimerReset, Waypoints } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ErrorState, LoadingState } from '@/components/common/States';
@@ -76,7 +76,21 @@ export const SiteDetailPage = () => {
           </div>
         </Panel>
 
-        <Panel title="Connection Health" subtitle="Useful when API access or certificates are not ready yet.">
+        <Panel title="Connection Health" subtitle="Cached ping results plus FortiGate API outcome.">
+          <div className="mb-4 space-y-3">
+            <DetailRow icon={TimerReset} label="Average Latency" value={formatLatency(site.latencyAvgMs)} />
+            <DetailRow label="Latency Range" value={formatRange(site.latencyMinMs, site.latencyMaxMs)} />
+            <DetailRow label="Packet Loss" value={formatPacketLoss(site.latencyPacketLoss)} />
+            <DetailRow label="Ping Cache" value={site.latencyCheckedAt ? new Date(site.latencyCheckedAt).toLocaleString() : 'Not measured yet'} />
+          </div>
+
+          {site.latencyError ? (
+            <div className="mb-4 rounded-3xl border border-warning/20 bg-warning/10 p-4">
+              <p className="text-sm font-semibold text-warning">Ping check warning</p>
+              <p className="mt-2 text-sm text-warning/90">{site.latencyError}</p>
+            </div>
+          ) : null}
+
           {site.lastSyncError ? (
             <div className="rounded-3xl border border-danger/20 bg-danger/10 p-4">
               <p className="text-sm font-semibold text-danger">Last sync error</p>
@@ -103,6 +117,13 @@ const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
     <div className="mt-2 text-sm font-medium capitalize text-text">{value}</div>
   </div>
 );
+
+const formatLatency = (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(1)} ms` : 'Unavailable');
+
+const formatRange = (min?: number | null, max?: number | null) =>
+  typeof min === 'number' && typeof max === 'number' ? `${min.toFixed(1)}-${max.toFixed(1)} ms` : 'Unavailable';
+
+const formatPacketLoss = (value?: number | null) => (typeof value === 'number' ? `${value.toFixed(0)}%` : 'Unavailable');
 
 const MiniTile = ({
   icon: Icon,
