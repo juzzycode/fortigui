@@ -4,6 +4,8 @@
 
 The backend scaffold supports storing firewall or gateway connection metadata, attaching multiple API keys per gateway, and downloading each gateway configuration into a local SQLite cache.
 
+It also includes a startup wizard flow for initial FortiGate bootstrap details.
+
 ## Storage Model
 
 SQLite tables:
@@ -13,6 +15,13 @@ SQLite tables:
 - `gateway_config_cache`
 
 ## What Gets Stored
+
+Startup wizard values are stored in separate SQLite files:
+
+- Username
+- Password
+- FortiGate IP
+- FortiGate API key
 
 For each gateway:
 
@@ -63,6 +72,12 @@ If `EDGEOPS_SECRET` is not set, keys fall back to local base64 encoding so devel
 `GET /`
 
 `GET /api`
+
+### Startup Wizard
+
+`GET /api/setup/status`
+
+`POST /api/setup/wizard`
 
 ### Interactive API Docs
 

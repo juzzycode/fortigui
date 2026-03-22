@@ -4,18 +4,24 @@ import { serverConfig } from './config.js';
 import { createDatabase } from './lib/database.js';
 import { createGatewayConfigService } from './lib/gateway-config-service.js';
 import { createGatewayRepository } from './lib/gateway-repository.js';
+import { createSetupStore } from './lib/setup-store.js';
 import { createOpenApiDocument } from './openapi.js';
 import { createGatewayRouter } from './routes/gateways.js';
+import { createSetupRouter } from './routes/setup.js';
 
 const start = async () => {
   const app = express();
   const db = await createDatabase(serverConfig.dbPath);
+  const setupStore = await createSetupStore({
+    files: serverConfig.setupFiles,
+    secret: serverConfig.secret,
+  });
   const repository = createGatewayRepository({
     db,
     secret: serverConfig.secret,
   });
   const gatewayConfigService = createGatewayConfigService({ repository });
-  const openApiDocument = createOpenApiDocument({ port: serverConfig.port });
+  const openApiDocument = createOpenApiDocument({ port: serverConfig.port, setupFiles: serverConfig.setupFiles });
 
   app.use(express.json());
 
@@ -78,6 +84,7 @@ const start = async () => {
           <li><a href="/api/docs">Swagger UI</a> <code>GET /api/docs</code></li>
           <li><a href="/api/openapi.json">OpenAPI spec</a> <code>GET /api/openapi.json</code></li>
           <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
+          <li><a href="/api/setup/status">Setup status</a> <code>GET /api/setup/status</code></li>
           <li><a href="/api/gateways">Gateway list</a> <code>GET /api/gateways</code></li>
         </ul>
         <p>Configured port: <code>${serverConfig.port}</code></p>
@@ -91,13 +98,15 @@ const start = async () => {
     response.json({
       name: 'EdgeOps Gateway Cache API',
       version: '1.0.0',
-      docs: '/api/docs',
-      openApi: '/api/openapi.json',
-      routes: {
-        health: '/api/health',
-        gateways: '/api/gateways',
-        gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
-        syncConfig: '/api/gateways/:gatewayId/sync-config',
+        docs: '/api/docs',
+        openApi: '/api/openapi.json',
+        routes: {
+          health: '/api/health',
+          setupStatus: '/api/setup/status',
+          setupWizard: '/api/setup/wizard',
+          gateways: '/api/gateways',
+          gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
+          syncConfig: '/api/gateways/:gatewayId/sync-config',
         configCache: '/api/gateways/:gatewayId/config-cache',
         latestConfigCache: '/api/gateways/:gatewayId/config-cache/latest',
       },
@@ -116,6 +125,7 @@ const start = async () => {
   });
 
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  app.use('/api/setup', createSetupRouter({ setupStore }));
 
   app.use(
     '/api/gateways',

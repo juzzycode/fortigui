@@ -41,6 +41,7 @@ npm run server
 ```
 
 The backend automatically reads `.env` for `EDGEOPS_PORT`, `EDGEOPS_DB_PATH`, and `EDGEOPS_SECRET`.
+On first load, the frontend now checks backend setup status and shows a startup wizard until the required setup files exist.
 
 Then run the frontend dev server:
 

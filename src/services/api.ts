@@ -1,6 +1,23 @@
 import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, sites, switches, vlanProfiles } from '@/mocks/data';
+import type { SetupStatus } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
+const jsonRequest = async <T,>(input: string, init?: RequestInit) => {
+  const response = await fetch(input, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error ?? `Request failed with status ${response.status}`);
+  }
+
+  return (await response.json()) as T;
+};
 
 export const api = {
   getDashboard: async () => delay({ sites, switches, accessPoints, clients, alerts, firmwareStatuses, bandwidthUsage }),
@@ -15,6 +32,13 @@ export const api = {
   getFirmwareStatuses: async () => delay(firmwareStatuses),
   getProfiles: async () => delay({ deviceProfiles, vlanProfiles, portProfiles }),
   getEventLogsByTarget: async (targetId: string) => delay(eventLogs.filter((entry) => entry.targetId === targetId)),
+  getSetupStatus: async () => jsonRequest<SetupStatus>('/api/setup/status'),
+  saveSetupWizard: async (payload: {
+    username: string;
+    password: string;
+    fortigateIp: string;
+    fortigateApiKey: string;
+  }) => jsonRequest<SetupStatus>('/api/setup/wizard', { method: 'POST', body: JSON.stringify(payload) }),
   simulateDeviceAction: async (action: string, targetId: string, payload?: Record<string, string | boolean>) =>
     delay({ success: true, action, targetId, payload, message: `${action} queued for ${targetId}` }, 450),
 };

@@ -6,6 +6,8 @@ const examples = {
     openApi: '/api/openapi.json',
     routes: {
       health: '/api/health',
+      setupStatus: '/api/setup/status',
+      setupWizard: '/api/setup/wizard',
       gateways: '/api/gateways',
       gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
       syncConfig: '/api/gateways/:gatewayId/sync-config',
@@ -16,6 +18,43 @@ const examples = {
   health: {
     ok: true,
     dbPath: '/app/data/edgeops-cache.sqlite',
+  },
+  setupStatus: {
+    complete: false,
+    checks: [
+      {
+        key: 'username',
+        label: 'Username',
+        filePath: '/app/data/setup/username.sqlite',
+        fileExists: true,
+        hasValue: true,
+        updatedAt: '2026-03-21T20:12:14.116Z',
+      },
+      {
+        key: 'password',
+        label: 'Password',
+        filePath: '/app/data/setup/password.sqlite',
+        fileExists: false,
+        hasValue: false,
+        updatedAt: null,
+      },
+      {
+        key: 'fortigateIp',
+        label: 'FortiGate IP',
+        filePath: '/app/data/setup/fortigate-ip.sqlite',
+        fileExists: true,
+        hasValue: true,
+        updatedAt: '2026-03-21T20:12:14.116Z',
+      },
+      {
+        key: 'fortigateApiKey',
+        label: 'FortiGate API Key',
+        filePath: '/app/data/setup/fortigate-api-key.sqlite',
+        fileExists: true,
+        hasValue: true,
+        updatedAt: '2026-03-21T20:12:14.116Z',
+      },
+    ],
   },
   gateway: {
     id: 'gate_9aab5705-847d-45f4-9bd1-5077bdb57f92',
@@ -137,6 +176,38 @@ const examples = {
 
 const components = {
   schemas: {
+    SetupCheck: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        label: { type: 'string' },
+        filePath: { type: 'string' },
+        fileExists: { type: 'boolean' },
+        hasValue: { type: 'boolean' },
+        updatedAt: { type: 'string', format: 'date-time', nullable: true },
+      },
+    },
+    SetupStatus: {
+      type: 'object',
+      properties: {
+        complete: { type: 'boolean' },
+        checks: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/SetupCheck' },
+        },
+      },
+      example: examples.setupStatus,
+    },
+    SetupWizardRequest: {
+      type: 'object',
+      required: ['username', 'password', 'fortigateIp', 'fortigateApiKey'],
+      properties: {
+        username: { type: 'string', example: 'admin' },
+        password: { type: 'string', example: 'correct-horse-battery-staple' },
+        fortigateIp: { type: 'string', example: '192.0.2.10' },
+        fortigateApiKey: { type: 'string', example: 'FGT-API-KEY-EXAMPLE' },
+      },
+    },
     ErrorResponse: {
       type: 'object',
       required: ['error'],
@@ -232,6 +303,7 @@ export const createOpenApiDocument = ({ port }) => ({
   ],
   tags: [
     { name: 'Health', description: 'Server health and discovery endpoints' },
+    { name: 'Setup', description: 'Startup wizard state and bootstrap configuration' },
     { name: 'Gateways', description: 'Gateway inventory and metadata management' },
     { name: 'API Keys', description: 'Gateway API key storage and listing' },
     { name: 'Config Cache', description: 'Gateway config sync and cached config retrieval' },
@@ -271,6 +343,87 @@ export const createOpenApiDocument = ({ port }) => ({
                 examples: {
                   default: {
                     value: examples.health,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/setup/status': {
+      get: {
+        tags: ['Setup'],
+        summary: 'Get startup wizard status',
+        description: 'If any required setup file is missing or empty, the wizard should be shown again.',
+        responses: {
+          200: {
+            description: 'Wizard completion status',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SetupStatus' },
+                examples: {
+                  incomplete: { value: examples.setupStatus },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/setup/wizard': {
+      post: {
+        tags: ['Setup'],
+        summary: 'Save startup wizard values',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SetupWizardRequest' },
+              examples: {
+                default: {
+                  value: {
+                    username: 'admin',
+                    password: 'correct-horse-battery-staple',
+                    fortigateIp: '192.0.2.10',
+                    fortigateApiKey: 'FGT-API-KEY-EXAMPLE',
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Wizard values saved',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SetupStatus' },
+                examples: {
+                  complete: {
+                    value: {
+                      complete: true,
+                      checks: examples.setupStatus.checks.map((check) => ({
+                        ...check,
+                        fileExists: true,
+                        hasValue: true,
+                      })),
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                examples: {
+                  default: {
+                    value: {
+                      error: 'username, password, fortigateIp, and fortigateApiKey are required',
+                    },
                   },
                 },
               },

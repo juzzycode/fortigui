@@ -167,3 +167,17 @@ export interface BandwidthPoint {
   inbound: number;
   outbound: number;
 }
+
+export interface SetupCheck {
+  key: 'username' | 'password' | 'fortigateIp' | 'fortigateApiKey';
+  label: string;
+  filePath: string;
+  fileExists: boolean;
+  hasValue: boolean;
+  updatedAt: string | null;
+}
+
+export interface SetupStatus {
+  complete: boolean;
+  checks: SetupCheck[];
+}
