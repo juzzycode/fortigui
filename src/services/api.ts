@@ -1,5 +1,4 @@
-import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, firmwareStatuses, portProfiles, switches as demoSwitches, vlanProfiles } from '@/mocks/data';
-import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, EventLog, ManagedUser, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, TopologyGraph } from '@/types/models';
+import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, DeviceProfile, EventLog, FirmwareStatus, ManagedUser, PortProfile, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, TopologyGraph, VLANProfile } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const authRequiredEventName = 'edgeops:auth-required';
@@ -53,7 +52,7 @@ const deriveBandwidthUsage = (accessPointInventory: AccessPoint[]): BandwidthPoi
     .sort((left, right) => right.inbound + right.outbound - (left.inbound + left.outbound))
     .slice(0, 6);
 
-  return points.length ? points : bandwidthUsage;
+  return points.length ? points : [];
 };
 
 const jsonRequest = async <T,>(input: string, init?: RequestInit) => {
@@ -114,13 +113,15 @@ export const api = {
   },
   getDashboard: async (siteId?: string | 'all') => {
     const siteQuery = siteId && siteId !== 'all' ? `?siteId=${encodeURIComponent(siteId)}` : '';
-    const sites = await jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites).catch(() => []);
+    const sites = await jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites);
     const filteredSites = siteId && siteId !== 'all' ? sites.filter((site) => site.id === siteId) : sites;
-    const switches = await jsonRequest<{ switches: SwitchDevice[] }>(`/api/switches${siteQuery}`).then((payload) => payload.switches).catch(() => demoSwitches);
-    const liveAccessPoints = await jsonRequest<{ accessPoints: AccessPoint[] }>(`/api/aps${siteQuery}`).then((payload) => payload.accessPoints).catch(() => accessPoints);
-    const liveClients = await jsonRequest<{ clients: Client[] }>(`/api/clients${siteQuery}`).then((payload) => payload.clients).catch(() => clients);
-    const liveAlerts = await jsonRequest<{ alerts: Alert[] }>(`/api/alerts${siteQuery}`).then((payload) => payload.alerts).catch(() => alerts);
-    const liveFirmwareStatuses = await jsonRequest<{ firmware: typeof firmwareStatuses }>(`/api/firmware${siteQuery}`).then((payload) => payload.firmware).catch(() => firmwareStatuses);
+    const [switches, liveAccessPoints, liveClients, liveAlerts, liveFirmwareStatuses] = await Promise.all([
+      jsonRequest<{ switches: SwitchDevice[] }>(`/api/switches${siteQuery}`).then((payload) => payload.switches),
+      jsonRequest<{ accessPoints: AccessPoint[] }>(`/api/aps${siteQuery}`).then((payload) => payload.accessPoints),
+      jsonRequest<{ clients: Client[] }>(`/api/clients${siteQuery}`).then((payload) => payload.clients),
+      jsonRequest<{ alerts: Alert[] }>(`/api/alerts${siteQuery}`).then((payload) => payload.alerts),
+      jsonRequest<{ firmware: FirmwareStatus[] }>(`/api/firmware${siteQuery}`).then((payload) => payload.firmware),
+    ]);
     const liveBandwidthUsage = deriveBandwidthUsage(liveAccessPoints);
     return delay({ sites: filteredSites, switches, accessPoints: liveAccessPoints, clients: liveClients, alerts: liveAlerts, firmwareStatuses: liveFirmwareStatuses, bandwidthUsage: liveBandwidthUsage });
   },
@@ -177,7 +178,6 @@ export const api = {
   deleteSite: async (id: string) => {
     await jsonRequest<unknown>(`/api/sites/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
-  loadDemoSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites/load-demo', { method: 'POST' }).then((payload) => payload.sites),
   getSwitches: async (siteId?: string | 'all') =>
     jsonRequest<{ switches: SwitchDevice[] }>(
       siteId && siteId !== 'all' ? `/api/switches?siteId=${encodeURIComponent(siteId)}` : '/api/switches',
@@ -219,19 +219,17 @@ export const api = {
 
     const query = search.toString();
     return jsonRequest<{ alerts: Alert[] }>(`/api/alerts${query ? `?${query}` : ''}`)
-      .then((payload) => payload.alerts)
-      .catch(() => delay(alerts));
+      .then((payload) => payload.alerts);
   },
   getFirmwareStatuses: async (siteId?: string | 'all') =>
-    jsonRequest<{ firmware: typeof firmwareStatuses }>(
+    jsonRequest<{ firmware: FirmwareStatus[] }>(
       siteId && siteId !== 'all' ? `/api/firmware?siteId=${encodeURIComponent(siteId)}` : '/api/firmware',
     )
-      .then((payload) => payload.firmware)
-      .catch(() => delay(firmwareStatuses)),
+      .then((payload) => payload.firmware),
   getProfiles: async (siteId?: string | 'all') =>
-    jsonRequest<{ deviceProfiles: typeof deviceProfiles; vlanProfiles: typeof vlanProfiles; portProfiles: typeof portProfiles }>(
+    jsonRequest<{ deviceProfiles: DeviceProfile[]; vlanProfiles: VLANProfile[]; portProfiles: PortProfile[] }>(
       siteId && siteId !== 'all' ? `/api/profiles?siteId=${encodeURIComponent(siteId)}` : '/api/profiles',
-    ).catch(() => delay({ deviceProfiles, vlanProfiles, portProfiles })),
+    ),
   getTopology: async (siteId?: string | 'all') =>
     jsonRequest<{ topology: TopologyGraph }>(
       siteId && siteId !== 'all' ? `/api/topology?siteId=${encodeURIComponent(siteId)}` : '/api/topology',

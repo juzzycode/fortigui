@@ -90,7 +90,6 @@ export const AlertsPage = () => {
                     <span>{alert.type}</span>
                     <span>{alert.siteName ?? alert.siteId}</span>
                     <span>{alert.deviceName ?? alert.deviceId ?? 'No specific device'}</span>
-                    <span>{alert.source === 'demo' ? 'Demo' : 'Live'}</span>
                   </div>
                 </button>
               ))}
@@ -106,7 +105,6 @@ export const AlertsPage = () => {
             <DrawerItem label="Severity" value={selectedAlert.severity} />
             <DrawerItem label="Site" value={selectedAlert.siteName ?? selectedAlert.siteId} />
             <DrawerItem label="Device" value={selectedAlert.deviceName ?? selectedAlert.deviceId ?? 'N/A'} />
-            <DrawerItem label="Source" value={selectedAlert.source ?? 'live'} />
             <DrawerItem label="Timestamp" value={formatRelativeTime(selectedAlert.timestamp)} />
             <DrawerItem label="Description" value={selectedAlert.description} />
             {selectedAlert.context?.map((entry) => (

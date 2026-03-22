@@ -80,7 +80,7 @@ export interface Site {
   latencyCheckedAt?: string | null;
   latencyError?: string | null;
   configArchiveEnabled?: boolean;
-  source?: 'live' | 'demo';
+  source?: 'live';
 }
 
 export interface SwitchPort {
@@ -245,7 +245,7 @@ export interface Alert {
   deviceName?: string;
   timestamp: string;
   acknowledged: boolean;
-  source?: 'live' | 'demo';
+  source?: 'live';
   context?: Array<{
     label: string;
     value: string;

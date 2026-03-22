@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ArrowRight, BadgePlus, LoaderCircle, Pencil, Server, Sparkles, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, BadgePlus, LoaderCircle, Pencil, Server, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/States';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -43,14 +43,11 @@ export const SitesPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<SiteFormState>(defaultForm);
   const [submitting, setSubmitting] = useState(false);
-  const [loadingDemo, setLoadingDemo] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [editingSite, setEditingSite] = useState<Site | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingSiteId, setDeletingSiteId] = useState<string | null>(null);
 
-  const liveSites = useMemo(() => (sites ?? []).filter((site) => site.source !== 'demo'), [sites]);
-  const demoSites = useMemo(() => (sites ?? []).filter((site) => site.source === 'demo'), [sites]);
   const canCreateSites = role === 'super_admin';
   const canEditSites = role !== 'read_only';
   const canDeleteSites = role === 'super_admin';
@@ -91,20 +88,6 @@ export const SitesPage = () => {
       setError(requestError instanceof Error ? requestError.message : 'Unable to create site.');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleLoadDemo = async () => {
-    setLoadingDemo(true);
-    setError(null);
-
-    try {
-      await api.loadDemoSites();
-      await refreshSites();
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load demo data.');
-    } finally {
-      setLoadingDemo(false);
     }
   };
 
@@ -177,29 +160,18 @@ export const SitesPage = () => {
       <PageHeader
         eyebrow="Sites"
         title="Site Management"
-        description="Add real FortiGate-backed sites, capture location metadata, and keep demo inventory as an explicit opt-in instead of the default view."
+        description="Add FortiGate-backed sites, capture location metadata, and manage live network inventory from one place."
         actions={
           <>
             {canCreateSites ? (
-              <>
-                <button
-                  className="focus-ring inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-text transition hover:bg-soft"
-                  onClick={() => setShowWizard((current) => !current)}
-                  type="button"
-                >
-                  <BadgePlus className="h-4 w-4" />
-                  {showWizard ? 'Hide Add Site' : 'Add Site'}
-                </button>
-                <button
-                  className="focus-ring inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
-                  disabled={loadingDemo}
-                  onClick={handleLoadDemo}
-                  type="button"
-                >
-                  {loadingDemo ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Load Demo Data
-                </button>
-              </>
+              <button
+                className="focus-ring inline-flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-text transition hover:bg-soft"
+                onClick={() => setShowWizard((current) => !current)}
+                type="button"
+              >
+                <BadgePlus className="h-4 w-4" />
+                {showWizard ? 'Hide Add Site' : 'Add Site'}
+              </button>
             ) : null}
           </>
         }
@@ -277,13 +249,12 @@ export const SitesPage = () => {
       {!sites.length ? (
         <EmptyState
           title="No sites configured yet"
-          description="Use Add Site to connect a real FortiGate-backed location, or load demo data if you want a sample estate to explore first."
+          description="Use Add Site to connect a FortiGate-backed location and start polling live inventory."
         />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <SummaryCard label="Live Sites" value={String(liveSites.length)} hint="Using configured FortiGate metadata" />
-            <SummaryCard label="Demo Sites" value={String(demoSites.length)} hint="Opt-in sample inventory only" />
+          <div className="grid gap-4 md:grid-cols-2">
+            <SummaryCard label="Configured Sites" value={String((sites ?? []).length)} hint="Using configured FortiGate metadata" />
             <SummaryCard
               label="Reachable APIs"
               value={String((sites ?? []).filter((site) => site.apiReachable).length)}
@@ -334,7 +305,6 @@ export const SitesPage = () => {
                   <DetailRow label="WAN IP" value={site.wanIp || 'Unavailable'} />
                   <DetailRow label="WAN" value={site.wanStatus} />
                   <DetailRow label="Config Archive" value={site.configArchiveEnabled ? 'Enabled' : 'Disabled'} />
-                  <DetailRow label="Source" value={site.source ?? 'live'} />
                 </div>
 
                 {site.lastSyncError ? (

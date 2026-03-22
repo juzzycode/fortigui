@@ -12,7 +12,7 @@ EdgeOps Cloud is a frontend-first network management UI for:
 - Profiles
 - Firmware lifecycle
 
-The site onboarding flow, live inventory views, alerts, profiles, and firmware lifecycle pages now use backend API calls, with demo data still available as a fallback for empty environments.
+The site onboarding flow, live inventory views, alerts, profiles, and firmware lifecycle pages now use backend API calls.
 
 ## Prerequisites
 
@@ -66,8 +66,6 @@ The backend generates a shorthand site id like `site-den` automatically and then
 For the full site onboarding guide, role model, FortiGate API key guidance, ping requirements, and config archive restrictions, see `docs/SITES.md`.
 
 You can later edit or delete a site directly from the Sites page. That is the preferred workflow over editing `data/sites.sqlite` by hand while the API is running.
-
-If you want sample locations instead, use `Load Demo Data` from the Sites page.
 
 ## Sign In
 
@@ -143,8 +141,6 @@ npm run dev -- --host 0.0.0.0
   - Reusable UI building blocks
 - `src/features`
   - Page-level modules
-- `src/mocks`
-  - Demo fallback seed data
 - `src/services`
   - Frontend API client and backend integration helpers
 - `src/store`

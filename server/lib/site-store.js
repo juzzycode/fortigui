@@ -76,7 +76,7 @@ export const createSiteStore = ({ db }) => ({
   },
 
   async listSites() {
-    return db.all(`SELECT * FROM sites ORDER BY is_demo ASC, name ASC`);
+    return db.all(`SELECT * FROM sites ORDER BY name ASC`);
   },
 
   async getSiteById(id) {
@@ -111,7 +111,6 @@ export const createSiteStore = ({ db }) => ({
       admin_username: input.adminUsername ?? '',
       admin_password: input.adminPassword ?? '',
       config_archive_enabled: input.configArchiveEnabled === false ? 0 : 1,
-      is_demo: input.isDemo ? 1 : 0,
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -122,7 +121,7 @@ export const createSiteStore = ({ db }) => ({
           id, shorthand_id, name, address, timezone, region, fortigate_name, fortigate_ip,
           fortigate_api_key, admin_username, admin_password, config_archive_enabled, is_demo, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       `,
       row.id,
       row.shorthand_id,
@@ -136,7 +135,6 @@ export const createSiteStore = ({ db }) => ({
       row.admin_username,
       row.admin_password,
       row.config_archive_enabled,
-      row.is_demo,
       row.created_at,
       row.updated_at,
     );

@@ -1,13 +1,6 @@
 import express from 'express';
 import { ensureSiteAccess, requireOperator, requireSuperAdmin } from '../lib/auth.js';
 
-const demoSites = [
-  { name: 'Austin HQ', address: '701 Congress Ave, Austin, TX', timezone: 'America/Chicago', region: 'Central' },
-  { name: 'Denver Branch', address: '1801 California St, Denver, CO', timezone: 'America/Denver', region: 'Mountain' },
-  { name: 'Raleigh Lab', address: '4242 Six Forks Rd, Raleigh, NC', timezone: 'America/New_York', region: 'East' },
-  { name: 'Seattle Warehouse', address: '301 Elliott Ave W, Seattle, WA', timezone: 'America/Los_Angeles', region: 'West' },
-];
-
 export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiveService, historyService, topologyService }) => {
   const router = express.Router();
 
@@ -43,7 +36,7 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
             latencyPacketLoss: null,
             latencyCheckedAt: null,
             latencyError: null,
-            source: site.is_demo ? 'demo' : 'live',
+            source: 'live',
           };
         }),
       ),
@@ -70,32 +63,9 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
       adminUsername,
       adminPassword,
       configArchiveEnabled,
-      isDemo: false,
     });
 
     response.status(201).json({ site: await fortiGateClient.summarizeSite(site) });
-  });
-
-  router.post('/load-demo', requireSuperAdmin, async (_request, response) => {
-    const existing = await siteStore.listSites();
-    const existingNames = new Set(existing.map((site) => site.name));
-
-    for (const demoSite of demoSites) {
-      if (!existingNames.has(demoSite.name)) {
-        await siteStore.createSite({
-          name: demoSite.name,
-          address: demoSite.address,
-          timezone: demoSite.timezone,
-          region: demoSite.region,
-          fortigateName: `${demoSite.name} FortiGate`,
-          isDemo: true,
-        });
-      }
-    }
-
-    const rows = await siteStore.listSites();
-    const sites = await Promise.all(rows.map((site) => fortiGateClient.summarizeSite(site)));
-    response.status(201).json({ sites });
   });
 
   router.get('/:id', async (request, response) => {

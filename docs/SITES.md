@@ -88,7 +88,7 @@ Capabilities:
 - create, edit, and delete users
 - change passwords
 - run operator actions across the estate
-- manage demo data and global settings
+- manage global settings
 
 ### `site_admin`
 

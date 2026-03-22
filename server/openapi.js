@@ -10,7 +10,6 @@ const examples = {
       setupWizard: '/api/setup/wizard',
       sites: '/api/sites',
       siteDetail: '/api/sites/:id',
-      loadDemoSites: '/api/sites/load-demo',
       alerts: '/api/alerts',
       switches: '/api/switches',
       switchDetail: '/api/switches/:id',
@@ -103,27 +102,6 @@ const examples = {
         latencyCheckedAt: '2026-03-21T20:19:44.112Z',
         latencyError: null,
         source: 'live',
-      },
-      {
-        id: 'site_5367fce5-bf96-4653-8a9b-9f9fdabf9d2e',
-        shorthandId: 'site-sea',
-        name: 'Seattle Warehouse',
-        address: '301 Elliott Ave W, Seattle, WA',
-        timezone: 'America/Los_Angeles',
-        region: 'West',
-        status: 'healthy',
-        wanStatus: 'online',
-        clientCount: 97,
-        switchCount: 4,
-        apCount: 6,
-        fortigateName: 'Seattle Warehouse FortiGate',
-        fortigateIp: '',
-        fortigateVersion: null,
-        fortigateSerial: null,
-        addressObjectCount: 0,
-        apiReachable: false,
-        lastSyncError: null,
-        source: 'demo',
       },
     ],
   },
@@ -618,7 +596,7 @@ const components = {
         latencyPacketLoss: { type: 'number', nullable: true },
         latencyCheckedAt: { type: 'string', format: 'date-time', nullable: true },
         latencyError: { type: 'string', nullable: true },
-        source: { type: 'string', enum: ['live', 'demo'] },
+        source: { type: 'string', enum: ['live'] },
       },
       example: examples.site,
     },
@@ -819,7 +797,7 @@ const components = {
         deviceName: { type: 'string', nullable: true },
         timestamp: { type: 'string', format: 'date-time' },
         acknowledged: { type: 'boolean' },
-        source: { type: 'string', enum: ['live', 'demo'], nullable: true },
+        source: { type: 'string', enum: ['live'], nullable: true },
         context: {
           type: 'array',
           items: { $ref: '#/components/schemas/AlertContext' },
@@ -1104,7 +1082,7 @@ export const createOpenApiDocument = ({ port }) => ({
       get: {
         tags: ['Sites'],
         summary: 'List sites',
-        description: 'Returns all configured sites with live or demo FortiGate summary data.',
+        description: 'Returns all configured sites with live FortiGate summary data.',
         responses: {
           200: {
             description: 'Site list',
@@ -1173,27 +1151,6 @@ export const createOpenApiDocument = ({ port }) => ({
                 examples: {
                   default: {
                     value: { error: 'name, address, timezone, and region are required' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    '/api/sites/load-demo': {
-      post: {
-        tags: ['Sites'],
-        summary: 'Seed demo sites',
-        description: 'Adds the built-in sample sites if they are not already present.',
-        responses: {
-          201: {
-            description: 'Demo sites created or returned',
-            content: {
-              'application/json': {
-                examples: {
-                  default: {
-                    value: examples.siteList,
                   },
                 },
               },

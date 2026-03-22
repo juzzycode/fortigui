@@ -191,7 +191,6 @@ const start = async () => {
         siteConfigSync: '/api/sites/:id/config-snapshots/sync',
         siteConfigDownload: '/api/sites/:id/config-snapshots/:snapshotId/download',
         siteConfigDiff: '/api/sites/:id/config-diffs',
-        loadDemoSites: '/api/sites/load-demo',
         alerts: '/api/alerts',
         events: '/api/events',
         profiles: '/api/profiles',

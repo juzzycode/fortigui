@@ -805,7 +805,7 @@ const normalizeSite = (site, overrides = {}) => ({
   fortigateName: site.fortigate_name || site.name,
   fortigateIp: site.fortigate_ip || '',
   wanIp: null,
-  source: site.is_demo ? 'demo' : 'live',
+  source: 'live',
   configArchiveEnabled: site.config_archive_enabled === undefined ? true : Boolean(site.config_archive_enabled),
   fortigateVersion: null,
   fortigateSerial: null,
@@ -823,17 +823,6 @@ const normalizeSite = (site, overrides = {}) => ({
 
 export const createFortiGateClient = ({ siteStore }) => ({
   async summarizeSite(site) {
-    if (site.is_demo) {
-      return normalizeSite(site, {
-        status: 'healthy',
-        wanStatus: 'online',
-        clientCount: 97,
-        switchCount: 4,
-        apCount: 6,
-        apiReachable: false,
-      });
-    }
-
     let workingSite = site;
     if (site.fortigate_ip && shouldRefreshLatency(site)) {
       workingSite = await siteStore.updateLatencyCache(site.id, await runPing(parseFortiGateTarget(site.fortigate_ip).host));
@@ -920,7 +909,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async listManagedSwitchesForSite(site) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return [];
     }
 
@@ -934,7 +923,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async getManagedSwitchDetailForSite(site, switchId) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return null;
     }
 
@@ -959,7 +948,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async listManagedAccessPointsForSite(site) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return [];
     }
 
@@ -985,7 +974,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async listRogueAccessPointsForSite(site) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return [];
     }
 
@@ -1009,7 +998,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async getManagedAccessPointDetailForSite(site, accessPointId) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return null;
     }
 
@@ -1040,7 +1029,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
   },
 
   async listClientsForSite(site) {
-    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+    if (!site.fortigate_ip || !site.fortigate_api_key) {
       return [];
     }
 

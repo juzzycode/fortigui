@@ -102,8 +102,6 @@ If `EDGEOPS_SECRET` is not set, keys fall back to local base64 encoding so devel
 
 `DELETE /api/sites/:id`
 
-`POST /api/sites/load-demo`
-
 ### Site Config Archive
 
 `GET /api/sites/:id/config-snapshots`

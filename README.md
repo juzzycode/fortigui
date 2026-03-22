@@ -107,10 +107,8 @@ npm run build
   - Reusable layout, panel, chart, table, drawer, and status UI components.
 - `src/features`
   - Page-oriented feature modules for dashboard, switches, APs, sites, clients, alerts, profiles, firmware, and settings.
-- `src/mocks`
-  - Seed data for demo fallback behavior plus optional demo sites where live inventory is not available.
 - `src/services`
-  - Async API service functions that bridge the frontend to live site, alert, profile, and firmware routes plus demo fallbacks.
+  - Async API service functions that bridge the frontend to live site, alert, profile, and firmware routes.
 - `src/store`
   - Lightweight global UI state for theme, authenticated session user, site selection, command palette state, and live refresh ticks.
 - `src/types`
@@ -129,11 +127,11 @@ npm run build
 - Authentication now flows through `/api/auth/*`, with session cookies protecting live inventory routes and `/api/users` handling operator management.
 - Each live site can now archive a full FortiGate configuration once per day, expose downloadable daily snapshots, and render diffs between archived days directly from the site detail view.
   This archive is controlled per site and can be enabled or disabled from the site create/edit workflow.
-- Expand the FortiGate client in `server/lib/fortigate-client.js` with more endpoints as device inventory moves off mock data.
+- Expand the FortiGate client in `server/lib/fortigate-client.js` with more endpoints as device inventory coverage grows.
 - Use `server/index.js` plus the SQLite-backed gateway cache for real firewall or gateway config retrieval.
-- Keep page components unchanged where possible by preserving return shapes from the mock service layer.
+- Keep page components unchanged where possible by preserving return shapes from the live service layer.
 - Add websocket or SSE subscriptions in `src/app/App.tsx` or a dedicated live data provider.
-- Swap mock entity IDs with backend-generated identifiers and pagination metadata.
+- Extend backend-generated identifiers and pagination metadata where needed.
 
 ## Notes
 
