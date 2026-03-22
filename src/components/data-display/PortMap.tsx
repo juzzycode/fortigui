@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, formatBytes } from '@/lib/utils';
 import type { SwitchPort } from '@/types/models';
 
 const tone: Record<SwitchPort['status'], string> = {
@@ -67,20 +67,6 @@ export const PortMap = ({ ports }: { ports: SwitchPort[] }) => (
 );
 
 const formatPortLabel = (value: string) => (value.toLowerCase().startsWith('port') ? value : `Port ${value}`);
-
-const formatBytes = (value: number) => {
-  if (value < 1024) return `${value} B`;
-  const units = ['KB', 'MB', 'GB', 'TB', 'PB'];
-  let size = value;
-  let unitIndex = -1;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${size.toFixed(size >= 100 ? 0 : 2)} ${units[unitIndex]}`;
-};
 
 const formatCount = (value: number) => value.toLocaleString();
 

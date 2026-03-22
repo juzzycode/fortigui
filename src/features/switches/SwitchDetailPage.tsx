@@ -7,11 +7,12 @@ import { ErrorState, LoadingState } from '@/components/common/States';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { PortBandwidthChart } from '@/components/data-display/PortBandwidthChart';
 import { PortMap } from '@/components/data-display/PortMap';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 import type { EventLog, SwitchDevice } from '@/types/models';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatBytes, formatRelativeTime } from '@/lib/utils';
 
 export const SwitchDetailPage = () => {
   const { id = '' } = useParams();
@@ -69,6 +70,9 @@ export const SwitchDetailPage = () => {
       <Panel title="Port Map" subtitle="Visual summary of port status, VLAN, and PoE draw.">
         <PortMap ports={device.ports} />
       </Panel>
+      <Panel title="Port Activity Graph" subtitle="RX and TX byte totals for every port, all normalized to the same switch-wide scale.">
+        <PortBandwidthChart ports={device.ports} />
+      </Panel>
       <div className="grid gap-6 xl:grid-cols-3">
         <Panel title="Port Status List">
           <div className="space-y-3">
@@ -79,6 +83,10 @@ export const SwitchDetailPage = () => {
                   <StatusBadge value={port.status === 'up' ? 'healthy' : port.status === 'warning' ? 'warning' : 'inactive'} />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-muted"><span>{port.vlan}</span><span>{port.poeWatts}W PoE</span></div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                  <span>RX {formatBytes(port.stats?.rxBytes ?? 0)}</span>
+                  <span>TX {formatBytes(port.stats?.txBytes ?? 0)}</span>
+                </div>
               </div>
             ))}
           </div>

@@ -34,6 +34,21 @@ export const formatRelativeTime = (iso: string) =>
 
 export const formatNumber = (value: number) => new Intl.NumberFormat('en-US').format(value);
 export const formatPercent = (value: number) => `${Math.round(value)}%`;
+export const formatBytes = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  if (value < 1024) return `${Math.round(value)} B`;
+
+  const units = ['KB', 'MB', 'GB', 'TB', 'PB'];
+  let size = value;
+  let unitIndex = -1;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 100 ? 0 : size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+};
 export const formatDuration = (seconds: number) => {
   if (!Number.isFinite(seconds) || seconds < 0) return 'N/A';
   if (seconds < 60) return `${Math.round(seconds)}s`;

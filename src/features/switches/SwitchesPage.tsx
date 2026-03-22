@@ -7,7 +7,7 @@ import { Panel } from '@/components/common/Panel';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { DataTable, type Column } from '@/components/tables/DataTable';
-import { formatRelativeTime } from '@/lib/utils';
+import { cn, formatBytes, formatRelativeTime } from '@/lib/utils';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 import type { Site, SwitchDevice } from '@/types/models';
@@ -45,6 +45,18 @@ export const SwitchesPage = () => {
     });
   }, [filter, query, switches]);
 
+  const siteBandwidthMaxima = useMemo(() => {
+    const maxima = new Map<string, number>();
+    for (const device of switches ?? []) {
+      const totalBytes = device.ports.reduce(
+        (sum, port) => sum + (port.stats?.rxBytes ?? 0) + (port.stats?.txBytes ?? 0),
+        0,
+      );
+      maxima.set(device.siteId, Math.max(maxima.get(device.siteId) ?? 0, totalBytes));
+    }
+    return maxima;
+  }, [switches]);
+
   if (!switches) return <LoadingState label="Loading switch inventory..." />;
 
   const columns: Column<SwitchDevice>[] = [
@@ -56,6 +68,36 @@ export const SwitchesPage = () => {
     { key: 'firmware', header: 'Firmware', render: (item) => `${item.firmware} / ${item.targetFirmware}` },
     { key: 'ports', header: 'Ports Used', render: (item) => `${item.portsUsed}/${item.totalPorts}` },
     { key: 'poe', header: 'PoE Usage', render: (item) => `${item.poeUsageWatts}W / ${item.poeBudgetWatts}W` },
+    {
+      key: 'bandwidth',
+      header: 'Bandwidth Comparison',
+      render: (item) => {
+        const totalBytes = item.ports.reduce(
+          (sum, port) => sum + (port.stats?.rxBytes ?? 0) + (port.stats?.txBytes ?? 0),
+          0,
+        );
+        const maxForSite = Math.max(siteBandwidthMaxima.get(item.siteId) ?? 0, 1);
+        const percent = Math.round((totalBytes / maxForSite) * 100);
+
+        return (
+          <div className="min-w-36">
+            <div className="flex items-center justify-between gap-3 text-xs text-muted">
+              <span>{formatBytes(totalBytes)}</span>
+              <span>{percent}% of site peak</span>
+            </div>
+            <div className="mt-2 h-2.5 rounded-full bg-soft">
+              <div
+                className={cn(
+                  'h-2.5 rounded-full',
+                  totalBytes === 0 ? 'bg-slate-500/40' : 'bg-accent',
+                )}
+                style={{ width: `${Math.min(percent, 100)}%` }}
+              />
+            </div>
+          </div>
+        );
+      },
+    },
     { key: 'uplink', header: 'Uplink', render: (item) => <StatusBadge value={item.uplinkStatus === 'up' ? 'healthy' : item.uplinkStatus === 'degraded' ? 'warning' : 'offline'} /> },
     { key: 'lastSeen', header: 'Last Seen', render: (item) => formatRelativeTime(item.lastSeen) },
   ];
