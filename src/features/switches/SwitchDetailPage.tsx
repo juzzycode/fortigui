@@ -32,7 +32,7 @@ export const SwitchDetailPage = () => {
   }, [device]);
 
   if (device === undefined) return <LoadingState label="Loading switch detail..." />;
-  if (device === null) return <ErrorState title="Switch not found" description="The requested device ID does not exist in mock inventory." />;
+  if (device === null) return <ErrorState title="Switch not found" description="The requested device ID does not exist in the live switch inventory." />;
 
   const runAction = async (action: string, payload?: Record<string, string | boolean>) => {
     const result = await api.simulateDeviceAction(action, device.id, payload);
@@ -41,7 +41,7 @@ export const SwitchDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Switch Detail" title={device.hostname} description={`${device.model} at ${device.managementIp}. Simulated operations are wired through a mock service layer that can later call real APIs.`} actions={<><ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot</ActionButton><ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}><Lightbulb className="mr-2 h-4 w-4" />Blink LED</ActionButton><ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Sync Config</ActionButton></>} />
+      <PageHeader eyebrow="Switch Detail" title={device.hostname} description={`${device.model}${device.managementIp ? ` at ${device.managementIp}` : ''}. Inventory and port state now come from the FortiGate switch controller API; actions are still simulated for now.`} actions={<><ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot</ActionButton><ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}><Lightbulb className="mr-2 h-4 w-4" />Blink LED</ActionButton><ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Sync Config</ActionButton></>} />
       {message ? <div className="rounded-2xl border border-accent/25 bg-accent-muted px-4 py-3 text-sm font-medium text-accent">{message}</div> : null}
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Summary">
@@ -75,7 +75,7 @@ export const SwitchDetailPage = () => {
             {device.ports.slice(0, 8).map((port) => (
               <div key={port.id} className="rounded-2xl bg-soft px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div><p className="font-medium text-text">Port {port.portNumber}</p><p className="text-xs text-muted">{port.description}</p></div>
+                  <div><p className="font-medium text-text">{formatPortLabel(port.portNumber)}</p><p className="text-xs text-muted">{port.description}</p></div>
                   <StatusBadge value={port.status === 'up' ? 'healthy' : port.status === 'warning' ? 'warning' : 'offline'} />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-muted"><span>{port.vlan}</span><span>{port.poeWatts}W PoE</span></div>
@@ -87,7 +87,7 @@ export const SwitchDetailPage = () => {
           <div className="space-y-3">
             {device.ports.filter((port) => port.neighbor || port.vlan).slice(0, 8).map((port) => (
               <div key={port.id} className="rounded-2xl bg-soft px-4 py-3">
-                <p className="text-sm font-semibold text-text">Port {port.portNumber}</p>
+                <p className="text-sm font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
                 <p className="mt-1 text-xs text-muted">VLAN: {port.vlan}</p>
                 <p className="mt-1 text-xs text-muted">Neighbor: {port.neighbor ?? 'Endpoint / no LLDP data'}</p>
               </div>
@@ -122,3 +122,5 @@ const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
     <div className="mt-2 text-sm font-medium text-text">{value}</div>
   </div>
 );
+
+const formatPortLabel = (value: string) => (value.toLowerCase().startsWith('port') ? value : `Port ${value}`);

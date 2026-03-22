@@ -4,31 +4,42 @@ import { Link } from 'react-router-dom';
 import { ActionButton } from '@/components/common/ActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
-import { LoadingState } from '@/components/common/States';
+import { ErrorState, LoadingState } from '@/components/common/States';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { DataTable, type Column } from '@/components/tables/DataTable';
 import { formatRelativeTime } from '@/lib/utils';
-import { sites } from '@/mocks/data';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
-import type { SwitchDevice } from '@/types/models';
+import type { Site, SwitchDevice } from '@/types/models';
 
 export const SwitchesPage = () => {
   const [switches, setSwitches] = useState<SwitchDevice[] | null>(null);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'healthy' | 'warning' | 'critical' | 'offline'>('all');
   const [selected, setSelected] = useState<string[]>([]);
   const role = useAppStore((state) => state.role);
+  const selectedSiteId = useAppStore((state) => state.selectedSiteId);
   const canOperate = role !== 'read_only';
 
   useEffect(() => {
-    api.getSwitches().then(setSwitches);
-  }, []);
+    Promise.all([api.getSwitches(selectedSiteId), api.getSites()])
+      .then(([switchRows, siteRows]) => {
+        setSwitches(switchRows);
+        setSites(siteRows);
+        setError(null);
+      })
+      .catch((requestError) => {
+        setError(requestError instanceof Error ? requestError.message : 'Unable to load switch inventory.');
+        setSwitches([]);
+      });
+  }, [selectedSiteId]);
 
   const filtered = useMemo(() => {
     if (!switches) return [];
     return switches.filter((device) => {
-      const matchesQuery = [device.hostname, device.model, device.serial].some((value) => value.toLowerCase().includes(query.toLowerCase()));
+      const matchesQuery = [device.hostname, device.model, device.serial, device.profileId].some((value) => value.toLowerCase().includes(query.toLowerCase()));
       const matchesFilter = filter === 'all' ? true : device.status === filter;
       return matchesQuery && matchesFilter;
     });
@@ -51,12 +62,21 @@ export const SwitchesPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Switching" title="Switch Management" description="Search, filter, and operate on access and aggregation switches with bulk actions and clear health status." actions={<><ActionButton><Download className="mr-2 h-4 w-4" />Export</ActionButton><ActionButton><RefreshCcw className="mr-2 h-4 w-4" />Refresh</ActionButton></>} />
+      <PageHeader eyebrow="Switching" title="Switch Management" description={`Showing ${selectedSiteId === 'all' ? 'all managed switches' : 'switches for the selected site'} from the live FortiGate switch controller API.`} actions={<><ActionButton><Download className="mr-2 h-4 w-4" />Export</ActionButton><ActionButton onClick={() => {
+        Promise.all([api.getSwitches(selectedSiteId), api.getSites()])
+          .then(([switchRows, siteRows]) => {
+            setSwitches(switchRows);
+            setSites(siteRows);
+            setError(null);
+          })
+          .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Unable to refresh switch inventory.'));
+      }}><RefreshCcw className="mr-2 h-4 w-4" />Refresh</ActionButton></>} />
+      {error ? <ErrorState title="Switch API unavailable" description={error} /> : null}
       <Panel title="Inventory" subtitle={`${filtered.length} devices shown`}>
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 items-center gap-3 rounded-2xl border border-border bg-soft px-4 py-3">
             <Search className="h-4 w-4 text-muted" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full border-0 bg-transparent text-sm text-text focus:outline-none" placeholder="Search by hostname, model, or serial" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full border-0 bg-transparent text-sm text-text focus:outline-none" placeholder="Search by hostname, model, serial, or profile" />
           </div>
           <div className="flex flex-wrap gap-3">
             <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="focus-ring rounded-2xl border border-border bg-soft px-4 py-3 text-sm text-text">

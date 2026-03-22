@@ -1,5 +1,5 @@
-import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, switches, vlanProfiles } from '@/mocks/data';
-import type { Site } from '@/types/models';
+import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, switches as demoSwitches, vlanProfiles } from '@/mocks/data';
+import type { Site, SwitchDevice } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const resolveApiBaseUrl = () => {
@@ -54,6 +54,7 @@ const jsonRequest = async <T,>(input: string, init?: RequestInit) => {
 export const api = {
   getDashboard: async () => {
     const sites = await jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites).catch(() => []);
+    const switches = await jsonRequest<{ switches: SwitchDevice[] }>('/api/switches').then((payload) => payload.switches).catch(() => demoSwitches);
     return delay({ sites, switches, accessPoints, clients, alerts, firmwareStatuses, bandwidthUsage });
   },
   getSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites),
@@ -70,8 +71,11 @@ export const api = {
     adminPassword?: string;
   }) => jsonRequest<{ site: Site }>('/api/sites', { method: 'POST', body: JSON.stringify(payload) }).then((payload) => payload.site),
   loadDemoSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites/load-demo', { method: 'POST' }).then((payload) => payload.sites),
-  getSwitches: async () => delay(switches),
-  getSwitchById: async (id: string) => delay(switches.find((device) => device.id === id) ?? null),
+  getSwitches: async (siteId?: string | 'all') =>
+    jsonRequest<{ switches: SwitchDevice[] }>(
+      siteId && siteId !== 'all' ? `/api/switches?siteId=${encodeURIComponent(siteId)}` : '/api/switches',
+    ).then((payload) => payload.switches),
+  getSwitchById: async (id: string) => jsonRequest<{ switch: SwitchDevice }>(`/api/switches/${encodeURIComponent(id)}`).then((payload) => payload.switch),
   getAps: async () => delay(accessPoints),
   getApById: async (id: string) => delay(accessPoints.find((device) => device.id === id) ?? null),
   getClients: async () => delay(clients),

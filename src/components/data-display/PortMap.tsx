@@ -13,7 +13,7 @@ export const PortMap = ({ ports }: { ports: SwitchPort[] }) => (
     {ports.map((port) => (
       <div key={port.id} className={cn('rounded-2xl border p-3', tone[port.status])}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold">Port {port.portNumber}</span>
+          <span className="text-sm font-semibold">{formatPortLabel(port.portNumber)}</span>
           <span className="text-[11px] uppercase">{port.speed}</span>
         </div>
         <p className="mt-3 truncate text-xs">{port.description}</p>
@@ -25,3 +25,5 @@ export const PortMap = ({ ports }: { ports: SwitchPort[] }) => (
     ))}
   </div>
 );
+
+const formatPortLabel = (value: string) => (value.toLowerCase().startsWith('port') ? value : `Port ${value}`);

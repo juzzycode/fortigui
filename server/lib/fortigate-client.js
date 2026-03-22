@@ -90,6 +90,81 @@ const parseWindowsPing = (stdout) => {
 
 const parsePingOutput = (stdout) => parseUnixPing(stdout) ?? parseWindowsPing(stdout);
 
+const inferSwitchModel = (item) => {
+  const explicit = extractStatusField(item, ['model', 'model_name', 'model-name', 'platform', 'product']);
+  if (explicit) return explicit;
+
+  const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']);
+  return serial && serial.length > 6 ? serial.slice(0, -6) : serial || 'FortiSwitch';
+};
+
+const parseWatts = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+  const match = value.match(/[\d.]+/);
+  return match ? Number(match[0]) : 0;
+};
+
+const mapPortStatus = (port) => {
+  if (port.status === 'up') return 'up';
+  if (port['poe-status'] === 'disable') return 'disabled';
+  return 'down';
+};
+
+const buildSwitchId = (siteId, serial) => `${siteId}--${serial}`;
+
+const mapManagedSwitch = (site, item) => {
+  const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
+  const ports = Array.isArray(item.ports) ? item.ports : [];
+  const portsUsed = ports.filter((port) => port.status === 'up').length;
+  const poeBudgetWatts = ports.reduce((total, port) => total + parseWatts(port['poe-max-power']), 0);
+  const firmware = extractStatusField(item, ['firmware-provision-version', 'staged-image-version', 'os-version']) || 'Managed by FortiGate';
+  const uplinkStatus = item['directly-connected'] === 1 ? 'up' : portsUsed ? 'degraded' : 'down';
+
+  return {
+    id: buildSwitchId(site.id, serial),
+    hostname:
+      extractStatusField(item, ['description', 'switch-device-tag', 'name']) ||
+      extractStatusField(item, ['switch-id', 'sn']) ||
+      serial,
+    model: inferSwitchModel(item),
+    serial,
+    siteId: site.id,
+    status: portsUsed ? (item['directly-connected'] === 1 ? 'healthy' : 'warning') : 'offline',
+    firmware,
+    targetFirmware: firmware,
+    portsUsed,
+    totalPorts: ports.length,
+    poeUsageWatts: 0,
+    poeBudgetWatts,
+    uplinkStatus,
+    lastSeen: new Date().toISOString(),
+    managementIp: extractStatusField(item, ['ip', 'management-ip', 'mgmt-ip']) || '',
+    profileId: extractStatusField(item, ['switch-profile', 'access-profile']) || 'default',
+    stackRole: 'standalone',
+    configSummary: [
+      `Switch profile: ${extractStatusField(item, ['switch-profile']) || 'default'}`,
+      `Access profile: ${extractStatusField(item, ['access-profile']) || 'default'}`,
+      `FortiLink peer: ${extractStatusField(item, ['fsw-wan1-peer']) || 'not reported'}`,
+      `Firmware provisioning: ${extractStatusField(item, ['firmware-provision']) || 'disable'}`,
+    ],
+    ports: ports.map((port) => ({
+      id: `${buildSwitchId(site.id, serial)}-${port['port-name']}`,
+      portNumber: port['port-name'] || 'unknown',
+      status: mapPortStatus(port),
+      speed: port.speed || 'auto',
+      poeWatts: 0,
+      vlan: port.vlan || '_default',
+      description: port.description || port['port-name'] || '',
+      profileId: port['port-policy'] || port['qos-policy'] || 'default',
+      clientCount: 0,
+      neighbor:
+        extractStatusField(port, ['isl-peer-device-name', 'fgt-peer-device-name', 'isl-peer-device-sn']) ||
+        undefined,
+    })),
+  };
+};
+
 const shouldRefreshLatency = (site) => {
   if (!site.latency_checked_at) return true;
 
@@ -251,5 +326,19 @@ export const createFortiGateClient = ({ siteStore }) => ({
         lastSyncError: error instanceof Error ? error.message : 'Unable to reach FortiGate API',
       });
     }
+  },
+
+  async listManagedSwitchesForSite(site) {
+    if (site.is_demo || !site.fortigate_ip || !site.fortigate_api_key) {
+      return [];
+    }
+
+    const payload = await requestJson(
+      `https://${site.fortigate_ip}/api/v2/cmdb/switch-controller/managed-switch`,
+      site.fortigate_api_key,
+    );
+
+    const switches = Array.isArray(payload.results) ? payload.results : [];
+    return switches.map((item) => mapManagedSwitch(site, item));
   },
 });

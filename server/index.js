@@ -12,6 +12,7 @@ import { createOpenApiDocument } from './openapi.js';
 import { createGatewayRouter } from './routes/gateways.js';
 import { createSetupRouter } from './routes/setup.js';
 import { createSitesRouter } from './routes/sites.js';
+import { createSwitchesRouter } from './routes/switches.js';
 
 const verboseLogging = process.argv.includes('-v') || process.argv.includes('--verbose');
 
@@ -113,6 +114,7 @@ const start = async () => {
           <li><a href="/api/openapi.json">OpenAPI spec</a> <code>GET /api/openapi.json</code></li>
           <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
           <li><a href="/api/sites">Sites</a> <code>GET /api/sites</code></li>
+          <li><a href="/api/switches">Switches</a> <code>GET /api/switches</code></li>
           <li><a href="/api/gateways">Gateway list</a> <code>GET /api/gateways</code></li>
         </ul>
         <p>Configured port: <code>${serverConfig.port}</code></p>
@@ -135,6 +137,8 @@ const start = async () => {
         sites: '/api/sites',
         siteDetail: '/api/sites/:id',
         loadDemoSites: '/api/sites/load-demo',
+        switches: '/api/switches',
+        switchDetail: '/api/switches/:id',
         gateways: '/api/gateways',
         gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
         syncConfig: '/api/gateways/:gatewayId/sync-config',
@@ -158,6 +162,7 @@ const start = async () => {
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.use('/api/setup', createSetupRouter({ setupStore }));
   app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient }));
+  app.use('/api/switches', createSwitchesRouter({ siteStore, fortiGateClient }));
 
   app.use(
     '/api/gateways',

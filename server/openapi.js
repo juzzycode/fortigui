@@ -11,6 +11,8 @@ const examples = {
       sites: '/api/sites',
       siteDetail: '/api/sites/:id',
       loadDemoSites: '/api/sites/load-demo',
+      switches: '/api/switches',
+      switchDetail: '/api/switches/:id',
       gateways: '/api/gateways',
       gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
       syncConfig: '/api/gateways/:gatewayId/sync-config',
@@ -109,6 +111,45 @@ const examples = {
         apiReachable: false,
         lastSyncError: null,
         source: 'demo',
+      },
+    ],
+  },
+  managedSwitch: {
+    id: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+    hostname: 'S426EFTF21001195',
+    model: 'S426EFTF',
+    serial: 'S426EFTF21001195',
+    siteId: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+    status: 'healthy',
+    firmware: 'Managed by FortiGate',
+    targetFirmware: 'Managed by FortiGate',
+    portsUsed: 30,
+    totalPorts: 30,
+    poeUsageWatts: 0,
+    poeBudgetWatts: 720,
+    uplinkStatus: 'up',
+    lastSeen: '2026-03-22T01:52:47.408Z',
+    managementIp: '',
+    profileId: 'default',
+    stackRole: 'standalone',
+    configSummary: [
+      'Switch profile: default',
+      'Access profile: default',
+      'FortiLink peer: fortilink',
+      'Firmware provisioning: disable',
+    ],
+    ports: [
+      {
+        id: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195-port1',
+        portNumber: 'port1',
+        status: 'up',
+        speed: 'auto',
+        poeWatts: 0,
+        vlan: 'FortiAP',
+        description: 'port1',
+        profileId: 'default',
+        clientCount: 0,
+        neighbor: null,
       },
     ],
   },
@@ -355,6 +396,46 @@ const components = {
       },
       example: examples.siteCreateRequest,
     },
+    SwitchPort: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        portNumber: { type: 'string' },
+        status: { type: 'string', enum: ['up', 'down', 'disabled', 'warning'] },
+        speed: { type: 'string' },
+        poeWatts: { type: 'number' },
+        vlan: { type: 'string' },
+        description: { type: 'string' },
+        profileId: { type: 'string' },
+        clientCount: { type: 'integer' },
+        neighbor: { type: 'string', nullable: true },
+      },
+    },
+    SwitchDevice: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        hostname: { type: 'string' },
+        model: { type: 'string' },
+        serial: { type: 'string' },
+        siteId: { type: 'string' },
+        status: { type: 'string', enum: ['healthy', 'warning', 'critical', 'offline'] },
+        firmware: { type: 'string' },
+        targetFirmware: { type: 'string' },
+        portsUsed: { type: 'integer' },
+        totalPorts: { type: 'integer' },
+        poeUsageWatts: { type: 'number' },
+        poeBudgetWatts: { type: 'number' },
+        uplinkStatus: { type: 'string', enum: ['up', 'degraded', 'down'] },
+        lastSeen: { type: 'string', format: 'date-time' },
+        managementIp: { type: 'string' },
+        profileId: { type: 'string' },
+        stackRole: { type: 'string', enum: ['standalone', 'member', 'core'] },
+        configSummary: { type: 'array', items: { type: 'string' } },
+        ports: { type: 'array', items: { $ref: '#/components/schemas/SwitchPort' } },
+      },
+      example: examples.managedSwitch,
+    },
     Gateway: {
       type: 'object',
       properties: {
@@ -445,6 +526,7 @@ export const createOpenApiDocument = ({ port }) => ({
     { name: 'Health', description: 'Server health and discovery endpoints' },
     { name: 'Setup', description: 'Startup wizard state and bootstrap configuration' },
     { name: 'Sites', description: 'Site onboarding and live FortiGate summaries' },
+    { name: 'Switches', description: 'Managed FortiSwitch inventory sourced from FortiGate' },
     { name: 'Gateways', description: 'Gateway inventory and metadata management' },
     { name: 'API Keys', description: 'Gateway API key storage and listing' },
     { name: 'Config Cache', description: 'Gateway config sync and cached config retrieval' },
@@ -715,6 +797,92 @@ export const createOpenApiDocument = ({ port }) => ({
                 examples: {
                   default: {
                     value: { error: 'Site not found' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/switches': {
+      get: {
+        tags: ['Switches'],
+        summary: 'List managed switches',
+        parameters: [
+          {
+            name: 'siteId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string' },
+            example: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Managed switch list',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    switches: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/SwitchDevice' },
+                    },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: { switches: [examples.managedSwitch] },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/switches/{switchId}': {
+      get: {
+        tags: ['Switches'],
+        summary: 'Get managed switch detail',
+        parameters: [
+          {
+            name: 'switchId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d--S426EFTF21001195',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Managed switch detail',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    switch: { $ref: '#/components/schemas/SwitchDevice' },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: { switch: examples.managedSwitch },
+                  },
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Switch not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                examples: {
+                  default: {
+                    value: { error: 'Switch not found' },
                   },
                 },
               },
