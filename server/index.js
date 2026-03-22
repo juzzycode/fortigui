@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { serverConfig } from './config.js';
@@ -26,6 +27,11 @@ const start = async () => {
   const openApiDocument = createOpenApiDocument({ port: serverConfig.port, setupFiles: serverConfig.setupFiles });
 
   app.use(express.json());
+  app.use(
+    cors({
+      origin: serverConfig.corsOrigin === '*' ? true : serverConfig.corsOrigin,
+    }),
+  );
 
   if (verboseLogging) {
     app.use((request, response, next) => {

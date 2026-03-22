@@ -8,6 +8,7 @@ export const serverConfig = {
   port: Number(process.env.EDGEOPS_PORT ?? 8787),
   dbPath: path.resolve(process.cwd(), process.env.EDGEOPS_DB_PATH ?? path.join(dataDir, 'edgeops-cache.sqlite')),
   secret: process.env.EDGEOPS_SECRET ?? '',
+  corsOrigin: process.env.EDGEOPS_CORS_ORIGIN ?? '*',
   setupFiles: {
     username: path.resolve(setupDir, 'username.sqlite'),
     password: path.resolve(setupDir, 'password.sqlite'),

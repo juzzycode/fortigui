@@ -2,7 +2,28 @@ import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLog
 import type { SetupStatus } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const resolveApiBaseUrl = () => {
+  const configured = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+  if (!configured || typeof window === 'undefined') return configured;
+
+  try {
+    const url = new URL(configured);
+    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+    const browserHost = window.location.hostname;
+    const browserIsRemote = !['localhost', '127.0.0.1'].includes(browserHost);
+
+    if (isLocalhost && browserIsRemote) {
+      url.hostname = browserHost;
+      return url.toString().replace(/\/$/, '');
+    }
+
+    return configured;
+  } catch {
+    return configured;
+  }
+};
+
+const apiBaseUrl = resolveApiBaseUrl();
 const withApiBase = (input: string) => `${apiBaseUrl}${input}`;
 
 const jsonRequest = async <T,>(input: string, init?: RequestInit) => {

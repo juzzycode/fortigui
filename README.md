@@ -43,6 +43,8 @@ npm run server
 The backend automatically reads `.env` for `EDGEOPS_PORT`, `EDGEOPS_DB_PATH`, and `EDGEOPS_SECRET`.
 On first load, the frontend now checks backend setup status and shows a startup wizard until the required setup files exist.
 If your frontend cannot reach the backend on the same origin, set `VITE_API_BASE_URL`, for example `VITE_API_BASE_URL=http://192.168.1.10:18787`.
+If you accidentally use `http://localhost:18787` while opening the UI from another device, the frontend now rewrites that to the current browser host automatically.
+The backend also allows cross-origin requests by default for this setup flow.
 
 Then run the frontend dev server:
 
