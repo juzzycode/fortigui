@@ -11,7 +11,7 @@ export const PortBandwidthChart = ({ ports }: { ports: SwitchPort[] }) => {
   return (
     <div className="overflow-x-auto pt-16">
       <div className="flex min-w-max items-end gap-2 rounded-3xl bg-soft p-4">
-        {ports.map((port) => {
+        {ports.map((port, index) => {
           const rxValue = port.stats?.rxBytes ?? 0;
           const txValue = port.stats?.txBytes ?? 0;
           const totalValue = rxValue + txValue;
@@ -22,6 +22,12 @@ export const PortBandwidthChart = ({ ports }: { ports: SwitchPort[] }) => {
           const txHeight = totalHeight > 0 ? Math.max(4, totalHeight * txRatio) : 0;
           const inactive = totalValue === 0;
           const isDisabled = port.status === 'disabled' || port.status === 'down';
+          const tooltipPositionClass =
+            index < 2
+              ? 'left-0 translate-x-0'
+              : index >= ports.length - 2
+                ? 'right-0 left-auto translate-x-0'
+                : 'left-1/2 -translate-x-1/2';
 
           return (
             <div key={port.id} className="group flex w-10 shrink-0 flex-col items-center gap-2">
@@ -51,7 +57,12 @@ export const PortBandwidthChart = ({ ports }: { ports: SwitchPort[] }) => {
                   )}
                 </div>
 
-                <div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden w-48 -translate-x-1/2 -translate-y-[calc(100%+0.35rem)] group-hover:block">
+                <div
+                  className={cn(
+                    'pointer-events-none absolute top-0 z-30 hidden w-48 -translate-y-[calc(100%+0.35rem)] group-hover:block',
+                    tooltipPositionClass,
+                  )}
+                >
                   <div className="rounded-2xl border border-border bg-canvas px-3 py-2 text-xs text-muted shadow-xl">
                     <p className="font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
                     <p className="mt-1">RX: {formatBytes(rxValue)}</p>
