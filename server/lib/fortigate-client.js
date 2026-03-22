@@ -1104,8 +1104,10 @@ export const createFortiGateClient = ({ siteStore }) => ({
         `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}/ports/${encodeURIComponent(normalizedPortNumber)}`,
         site.fortigate_api_key,
         {
-          method: 'PATCH',
-          body: patchBody,
+          method: 'PUT',
+          body: {
+            data: patchBody,
+          },
         },
       );
     } catch (firstError) {
@@ -1113,9 +1115,11 @@ export const createFortiGateClient = ({ siteStore }) => ({
         `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch/${encodeURIComponent(serial)}`,
         site.fortigate_api_key,
         {
-          method: 'PATCH',
+          method: 'PUT',
           body: {
-            ports: [patchBody],
+            data: {
+              ports: [patchBody],
+            },
           },
         },
       ).catch((secondError) => {
