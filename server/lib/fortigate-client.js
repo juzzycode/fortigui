@@ -57,6 +57,9 @@ const extractStatusField = (source, keys) => {
   return null;
 };
 
+const extractFromStatusPayload = (payload, keys) =>
+  extractStatusField(payload?.results ?? {}, keys) || extractStatusField(payload, keys);
+
 const parseUnixPing = (stdout) => {
   const packetLossMatch = stdout.match(/(\d+(?:\.\d+)?)%\s+packet loss/i);
   const roundTripMatch = stdout.match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/[\d.]+/);
@@ -213,17 +216,16 @@ export const createFortiGateClient = ({ siteStore }) => ({
         requestJson(`https://${workingSite.fortigate_ip}/api/v2/cmdb/firewall/address?format=name`, workingSite.fortigate_api_key),
       ]);
 
-      const statusSource = statusPayload.results ?? statusPayload;
       const addressResults = Array.isArray(addressPayload.results) ? addressPayload.results : [];
-      const fortigateVersion = extractStatusField(statusSource, ['version', 'firmware', 'build', 'major']);
-      const fortigateSerial = extractStatusField(statusSource, ['serial', 'serial_number', 'serial-no', 'sn']);
+      const fortigateVersion = extractFromStatusPayload(statusPayload, ['version', 'firmware', 'build', 'major']);
+      const fortigateSerial = extractFromStatusPayload(statusPayload, ['serial', 'serial_number', 'serial-no', 'sn']);
+      const fortigateName = extractFromStatusPayload(statusPayload, ['hostname', 'name']);
       const hasIdentity = Boolean(fortigateVersion && fortigateSerial);
 
       return normalizeSite(workingSite, {
         status: hasIdentity ? 'healthy' : 'warning',
         wanStatus: latency.packetLoss === 100 ? 'offline' : latency.packetLoss && latency.packetLoss > 0 ? 'degraded' : 'online',
-        fortigateName:
-          extractStatusField(statusSource, ['hostname', 'name']) || workingSite.fortigate_name || workingSite.name,
+        fortigateName: fortigateName || workingSite.fortigate_name || workingSite.name,
         fortigateVersion,
         fortigateSerial,
         addressObjectCount: addressResults.length,
