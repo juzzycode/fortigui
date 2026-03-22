@@ -5,9 +5,11 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const pingCacheTtlMs = 60_000;
 const switchStatsCacheTtlMs = 60_000;
+const switchStatusCacheTtlMs = 30_000;
 const wirelessClientsCacheTtlMs = 30_000;
 const fortiGateRequestTimeoutMs = 5_000;
 const switchStatsCache = new Map();
+const switchStatusCache = new Map();
 const wirelessClientsCache = new Map();
 
 const parseFortiGateTarget = (value) => {
@@ -555,6 +557,29 @@ const getCachedSwitchStats = async (site, serial, apiKey) => {
   return payload;
 };
 
+const shouldUseCachedSwitchStatus = (entry) =>
+  Boolean(entry) && Date.now() - entry.fetchedAt < switchStatusCacheTtlMs;
+
+const getCachedSwitchStatus = async (site, apiKey) => {
+  const cacheKey = `${site.id}:switch-status`;
+  const cached = switchStatusCache.get(cacheKey);
+  if (shouldUseCachedSwitchStatus(cached)) {
+    return cached.payload;
+  }
+
+  const payload = await requestJson(
+    `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/monitor/switch-controller/managed-switch/status`,
+    apiKey,
+  );
+
+  switchStatusCache.set(cacheKey, {
+    fetchedAt: Date.now(),
+    payload,
+  });
+
+  return payload;
+};
+
 const applyUplinkHeuristics = (ports) => {
   const activePorts = ports.filter((port) => port.status === 'up' && port.stats);
   if (!activePorts.length) return ports;
@@ -666,26 +691,40 @@ const dedupeSwitchVlanOptions = (items) =>
     return left.name.localeCompare(right.name);
   });
 
-const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = []) => {
+const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = [], runtimeStatus = null) => {
   const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
   const switchId = buildSwitchId(site.id, serial);
   const rawPorts = Array.isArray(item.ports) ? item.ports : [];
   const portOverrides = buildPortOverrideMap(portOverrideRows);
   const poeBudgetWatts = rawPorts.reduce((total, port) => total + parseWatts(port['poe-max-power']), 0);
-  const firmware = extractStatusField(item, ['firmware-provision-version', 'staged-image-version', 'os-version']) || 'Managed by FortiGate';
+  const runtimePorts = Array.isArray(runtimeStatus?.ports) ? runtimeStatus.ports : [];
+  const runtimePortMap = new Map(runtimePorts.map((port) => [String(port.interface || '').trim(), port]));
+  const poeUsageWatts = runtimePorts.reduce((total, port) => total + (parseMaybeNumber(port.port_power) ?? 0), 0);
+  const firmware =
+    extractStatusField(runtimeStatus, ['os_version', 'firmware-version', 'version']) ||
+    extractStatusField(item, ['firmware-provision-version', 'staged-image-version', 'os-version']) ||
+    'Managed by FortiGate';
   const ports = applyUplinkHeuristics(
     rawPorts.map((port) => {
       const portName = port['port-name'] || 'unknown';
       const stats = statsByPort[portName] ? mapPortStats(statsByPort[portName]) : undefined;
+      const runtimePort = runtimePortMap.get(portName);
       const override = portOverrides.get(portName);
       const overrideDisabled = override?.enabled === false;
 
       return {
         id: `${switchId}-${portName}`,
         portNumber: portName,
-        status: overrideDisabled ? 'disabled' : mapPortStatus(port, stats),
+        status:
+          overrideDisabled
+            ? 'disabled'
+            : runtimePort?.status
+              ? String(runtimePort.status).toLowerCase() === 'up'
+                ? 'up'
+                : 'down'
+              : mapPortStatus(port, stats),
         speed: port.speed || 'auto',
-        poeWatts: 0,
+        poeWatts: parseMaybeNumber(runtimePort?.port_power) ?? 0,
         vlan: override?.vlan || port.vlan || '_default',
         description: override?.description || port.description || portName,
         profileId: port['port-policy'] || port['qos-policy'] || 'default',
@@ -723,7 +762,7 @@ const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = []) =
     targetFirmware: firmware,
     portsUsed,
     totalPorts: ports.length,
-    poeUsageWatts: 0,
+    poeUsageWatts,
     poeBudgetWatts,
     uplinkStatus,
     lastSeen: new Date().toISOString(),
@@ -735,7 +774,7 @@ const mapManagedSwitch = (site, item, statsByPort = {}, portOverrideRows = []) =
       `Access profile: ${extractStatusField(item, ['access-profile']) || 'default'}`,
       `FortiLink peer: ${extractStatusField(item, ['fsw-wan1-peer']) || 'not reported'}`,
       `Firmware provisioning: ${extractStatusField(item, ['firmware-provision']) || 'disable'}`,
-      'Live PoE draw is not exposed by the current REST endpoints; budget only is shown here.',
+      runtimeStatus?.os_version ? `Running firmware: ${runtimeStatus.os_version}` : 'Live switch runtime status is not available from the FortiGate monitor endpoint.',
     ],
     ports,
   };
@@ -980,13 +1019,23 @@ export const createFortiGateClient = ({ siteStore }) => ({
       return [];
     }
 
-    const payload = await requestJson(
-      `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
-      site.fortigate_api_key,
-    );
+    const [payload, switchStatusPayload] = await Promise.all([
+      requestJson(
+        `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
+        site.fortigate_api_key,
+      ),
+      getCachedSwitchStatus(site, site.fortigate_api_key).catch(() => ({ results: [] })),
+    ]);
 
     const switches = Array.isArray(payload.results) ? payload.results : [];
-    return switches.map((item) => mapManagedSwitch(site, item));
+    const switchStatuses = Array.isArray(switchStatusPayload.results) ? switchStatusPayload.results : [];
+    const runtimeMap = new Map(
+      switchStatuses.map((entry) => [extractStatusField(entry, ['switch-id', 'serial']) || '', entry]),
+    );
+    return switches.map((item) => {
+      const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
+      return mapManagedSwitch(site, item, {}, [], runtimeMap.get(serial) ?? null);
+    });
   },
 
   async getManagedSwitchDetailForSite(site, switchId) {
@@ -1007,13 +1056,19 @@ export const createFortiGateClient = ({ siteStore }) => ({
     if (!item) return null;
 
     const serial = extractStatusField(item, ['sn', 'serial', 'switch-id']) || 'unknown-switch';
-    const statsPayload = await getCachedSwitchStats(site, serial, site.fortigate_api_key).catch(() => null);
+    const [statsPayload, switchStatusPayload] = await Promise.all([
+      getCachedSwitchStats(site, serial, site.fortigate_api_key).catch(() => null),
+      getCachedSwitchStatus(site, site.fortigate_api_key).catch(() => ({ results: [] })),
+    ]);
     const statsByPort =
       Array.isArray(statsPayload?.results) && statsPayload.results[0]?.ports ? statsPayload.results[0].ports : {};
     const resolvedSwitchId = buildSwitchId(site.id, serial);
     const portOverrides = await siteStore.listSwitchPortOverrides(resolvedSwitchId).catch(() => []);
+    const switchStatuses = Array.isArray(switchStatusPayload.results) ? switchStatusPayload.results : [];
+    const runtimeStatus =
+      switchStatuses.find((entry) => (extractStatusField(entry, ['switch-id', 'serial']) || '') === serial) ?? null;
 
-    return mapManagedSwitch(site, item, statsByPort, portOverrides);
+    return mapManagedSwitch(site, item, statsByPort, portOverrides, runtimeStatus);
   },
 
   async listManagedSwitchVlansForSite(site, switchId) {
