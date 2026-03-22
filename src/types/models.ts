@@ -124,6 +124,7 @@ export interface AccessPointClient {
   id: string;
   name: string;
   hostname?: string;
+  dhcpName?: string;
   ip?: string;
   mac: string;
   ssid: string;
@@ -134,6 +135,12 @@ export interface AccessPointClient {
   channel?: number;
   manufacturer?: string;
   health?: 'good' | 'fair' | 'poor';
+  rxRateMbps?: number;
+  txRateMbps?: number;
+  retryPercent?: number;
+  discardPercent?: number;
+  idleSeconds?: number;
+  connectedAt?: string;
 }
 
 export interface Client {

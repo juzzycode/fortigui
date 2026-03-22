@@ -109,6 +109,12 @@ const parseWatts = (value) => {
   return match ? Number(match[0]) : 0;
 };
 
+const maybeIsoFromUnix = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1_000_000_000) return undefined;
+  return new Date(numeric * 1000).toISOString();
+};
+
 const inferApModel = (item) => {
   const profile = extractStatusField(item, ['wtp-profile', 'platform']);
   if (profile?.includes('-default')) {
@@ -153,6 +159,7 @@ const mapApClient = (client) => ({
   id: client.mac || `${client.wtp_id}-${client.ip || 'client'}`,
   name: client.hostname || client.host || client.manufacturer || client.mac || 'Client',
   hostname: client.hostname || client.host || undefined,
+  dhcpName: client.host || undefined,
   ip: client.ip || undefined,
   mac: client.mac || '',
   ssid: client.ssid || client.vap_name || 'Unknown SSID',
@@ -163,6 +170,12 @@ const mapApClient = (client) => ({
   channel: parseMaybeNumber(client.channel) ?? undefined,
   manufacturer: client.manufacturer || undefined,
   health: client.health?.signal_strength?.severity || client.health?.snr?.severity || 'good',
+  rxRateMbps: parseMaybeNumber(client.sta_rxrate) ? Math.round(Number(client.sta_rxrate) / 1000) : undefined,
+  txRateMbps: parseMaybeNumber(client.sta_txrate) ? Math.round(Number(client.sta_txrate) / 1000) : undefined,
+  retryPercent: parseMaybeNumber(client.tx_retry_percentage) ?? undefined,
+  discardPercent: parseMaybeNumber(client.tx_discard_percentage) ?? undefined,
+  idleSeconds: parseMaybeNumber(client.idle_time) ?? undefined,
+  connectedAt: maybeIsoFromUnix(client.association_time),
 });
 
 const deriveStatusFromAp = (item, clients) => {
