@@ -8,7 +8,7 @@ const demoSites = [
   { name: 'Seattle Warehouse', address: '301 Elliott Ave W, Seattle, WA', timezone: 'America/Los_Angeles', region: 'West' },
 ];
 
-export const createSitesRouter = ({ siteStore, fortiGateClient }) => {
+export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiveService }) => {
   const router = express.Router();
 
   router.get('/', async (_request, response) => {
@@ -108,6 +108,86 @@ export const createSitesRouter = ({ siteStore, fortiGateClient }) => {
     }
 
     response.json({ site: await fortiGateClient.summarizeSite(site) });
+  });
+
+  router.get('/:id/config-snapshots', async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const site = await siteStore.getSiteById(request.params.id);
+    if (!site) {
+      response.status(404).json({ error: 'Site not found' });
+      return;
+    }
+
+    response.json({
+      snapshots: await siteConfigArchiveService.listSnapshots(request.params.id),
+    });
+  });
+
+  router.post('/:id/config-snapshots/sync', requireOperator, async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const site = await siteStore.getSiteById(request.params.id);
+    if (!site) {
+      response.status(404).json({ error: 'Site not found' });
+      return;
+    }
+
+    try {
+      const snapshot = await siteConfigArchiveService.ensureDailySnapshot(request.params.id, {
+        force: Boolean(request.body?.force),
+      });
+      response.status(201).json({ snapshot });
+    } catch (error) {
+      response.status(400).json({
+        error: error instanceof Error ? error.message : 'Unable to sync site config snapshot',
+      });
+    }
+  });
+
+  router.get('/:id/config-snapshots/:snapshotId/download', async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const download = await siteConfigArchiveService.getSnapshotDownload(request.params.id, request.params.snapshotId);
+    if (!download) {
+      response.status(404).json({ error: 'Snapshot not found' });
+      return;
+    }
+
+    response.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    response.setHeader('Content-Disposition', `attachment; filename="${download.filename}"`);
+    response.send(download.content);
+  });
+
+  router.get('/:id/config-diffs', async (request, response) => {
+    if (!ensureSiteAccess(request, response, request.params.id)) {
+      return;
+    }
+
+    const site = await siteStore.getSiteById(request.params.id);
+    if (!site) {
+      response.status(404).json({ error: 'Site not found' });
+      return;
+    }
+
+    const diff = await siteConfigArchiveService.getDiff(
+      request.params.id,
+      typeof request.query.fromSnapshotId === 'string' ? request.query.fromSnapshotId : undefined,
+      typeof request.query.toSnapshotId === 'string' ? request.query.toSnapshotId : undefined,
+    );
+
+    if (!diff) {
+      response.status(404).json({ error: 'Not enough successful snapshots to build a diff' });
+      return;
+    }
+
+    response.json({ diff });
   });
 
   router.patch('/:id', requireOperator, async (request, response) => {

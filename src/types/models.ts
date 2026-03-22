@@ -24,6 +24,35 @@ export interface ManagedUser extends AuthUser {
   siteName?: string | null;
 }
 
+export interface SiteConfigSnapshot {
+  id: string;
+  siteId: string;
+  snapshotDate: string;
+  status: 'success' | 'failed';
+  configSha256: string | null;
+  diffSha256: string | null;
+  changeSummary: {
+    comparedToDate: string | null;
+    addedLines: number;
+    removedLines: number;
+    hasChanges: boolean;
+  } | null;
+  errorText: string | null;
+  fetchedAt: string;
+  updatedAt: string;
+}
+
+export interface SiteConfigDiff {
+  fromSnapshot: SiteConfigSnapshot;
+  toSnapshot: SiteConfigSnapshot;
+  diffText: string;
+  stats: {
+    addedLines: number;
+    removedLines: number;
+    hasChanges: boolean;
+  };
+}
+
 export interface Site {
   id: string;
   shorthandId?: string;

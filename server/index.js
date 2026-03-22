@@ -9,6 +9,7 @@ import { createFortiGateClient } from './lib/fortigate-client.js';
 import { createGatewayConfigService } from './lib/gateway-config-service.js';
 import { createGatewayRepository } from './lib/gateway-repository.js';
 import { createInventoryService } from './lib/inventory-service.js';
+import { createSiteConfigArchiveService } from './lib/site-config-archive-service.js';
 import { createAlertService } from './lib/alert-service.js';
 import { createSiteStore } from './lib/site-store.js';
 import { createSetupStore } from './lib/setup-store.js';
@@ -49,6 +50,7 @@ const start = async () => {
     secret: serverConfig.secret,
   });
   const fortiGateClient = createFortiGateClient({ siteStore });
+  const siteConfigArchiveService = createSiteConfigArchiveService({ siteStore });
   const inventoryService = createInventoryService({ siteStore, fortiGateClient });
   const alertService = createAlertService({ siteStore, fortiGateClient });
   const gatewayConfigService = createGatewayConfigService({ repository });
@@ -137,6 +139,7 @@ const start = async () => {
           <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
           <li><a href="/api/auth/session">Current session</a> <code>GET /api/auth/session</code></li>
           <li><a href="/api/sites">Sites</a> <code>GET /api/sites</code></li>
+          <li><a href="/api/sites">Site Config Archive</a> <code>GET /api/sites/:id/config-snapshots</code></li>
           <li><a href="/api/alerts">Alerts</a> <code>GET /api/alerts</code></li>
           <li><a href="/api/profiles">Profiles</a> <code>GET /api/profiles</code></li>
           <li><a href="/api/firmware">Firmware</a> <code>GET /api/firmware</code></li>
@@ -169,6 +172,10 @@ const start = async () => {
         setupWizard: '/api/setup/wizard',
         sites: '/api/sites',
         siteDetail: '/api/sites/:id',
+        siteConfigSnapshots: '/api/sites/:id/config-snapshots',
+        siteConfigSync: '/api/sites/:id/config-snapshots/sync',
+        siteConfigDownload: '/api/sites/:id/config-snapshots/:snapshotId/download',
+        siteConfigDiff: '/api/sites/:id/config-diffs',
         loadDemoSites: '/api/sites/load-demo',
         alerts: '/api/alerts',
         profiles: '/api/profiles',
@@ -209,7 +216,7 @@ const start = async () => {
   });
   app.use('/api', requireSession);
   app.use('/api/setup', createSetupRouter({ setupStore }));
-  app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient }));
+  app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient, siteConfigArchiveService }));
   app.use('/api/alerts', createAlertsRouter({ alertService }));
   app.use('/api/profiles', createProfilesRouter({ inventoryService }));
   app.use('/api/firmware', createFirmwareRouter({ inventoryService }));
@@ -232,6 +239,8 @@ const start = async () => {
       console.log('[api] Verbose request logging enabled');
     }
   });
+
+  siteConfigArchiveService.startScheduler();
 
   server.on('error', (error) => {
     if (error.code === 'EADDRINUSE') {

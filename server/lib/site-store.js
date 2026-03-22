@@ -51,6 +51,27 @@ export const createSiteStore = ({ db }) => ({
         await db.exec(sql);
       }
     }
+
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS site_config_snapshots (
+        id TEXT PRIMARY KEY,
+        site_id TEXT NOT NULL,
+        snapshot_date TEXT NOT NULL,
+        status TEXT NOT NULL,
+        config_sha256 TEXT,
+        config_blob TEXT,
+        diff_sha256 TEXT,
+        change_summary_json TEXT,
+        error_text TEXT,
+        fetched_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(site_id, snapshot_date),
+        FOREIGN KEY(site_id) REFERENCES sites(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_site_config_snapshots_site_date
+        ON site_config_snapshots(site_id, snapshot_date DESC);
+    `);
   },
 
   async listSites() {
@@ -188,5 +209,112 @@ export const createSiteStore = ({ db }) => ({
     );
 
     return this.getSiteById(id);
+  },
+
+  async listSiteConfigSnapshots(siteId) {
+    return db.all(
+      `
+        SELECT *
+        FROM site_config_snapshots
+        WHERE site_id = ?
+        ORDER BY snapshot_date DESC, fetched_at DESC
+      `,
+      siteId,
+    );
+  },
+
+  async getSiteConfigSnapshot(siteId, snapshotId) {
+    return (
+      (await db.get(
+        `
+          SELECT *
+          FROM site_config_snapshots
+          WHERE site_id = ? AND id = ?
+        `,
+        siteId,
+        snapshotId,
+      )) ?? null
+    );
+  },
+
+  async getSiteConfigSnapshotByDate(siteId, snapshotDate) {
+    return (
+      (await db.get(
+        `
+          SELECT *
+          FROM site_config_snapshots
+          WHERE site_id = ? AND snapshot_date = ?
+        `,
+        siteId,
+        snapshotDate,
+      )) ?? null
+    );
+  },
+
+  async getPreviousSuccessfulSiteConfigSnapshot(siteId, snapshotDate) {
+    return (
+      (await db.get(
+        `
+          SELECT *
+          FROM site_config_snapshots
+          WHERE site_id = ? AND status = 'success' AND snapshot_date < ?
+          ORDER BY snapshot_date DESC, fetched_at DESC
+          LIMIT 1
+        `,
+        siteId,
+        snapshotDate,
+      )) ?? null
+    );
+  },
+
+  async upsertSiteConfigSnapshot(input) {
+    const existing = await this.getSiteConfigSnapshotByDate(input.siteId, input.snapshotDate);
+    const now = nowIso();
+
+    if (!existing) {
+      const id = makeId('cfgsnap');
+      await db.run(
+        `
+          INSERT INTO site_config_snapshots (
+            id, site_id, snapshot_date, status, config_sha256, config_blob, diff_sha256,
+            change_summary_json, error_text, fetched_at, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        id,
+        input.siteId,
+        input.snapshotDate,
+        input.status,
+        input.configSha256,
+        input.configBlob,
+        input.diffSha256,
+        input.changeSummary ? JSON.stringify(input.changeSummary) : null,
+        input.errorText,
+        now,
+        now,
+      );
+
+      return this.getSiteConfigSnapshot(input.siteId, id);
+    }
+
+    await db.run(
+      `
+        UPDATE site_config_snapshots
+        SET status = ?, config_sha256 = ?, config_blob = ?, diff_sha256 = ?, change_summary_json = ?,
+            error_text = ?, fetched_at = ?, updated_at = ?
+        WHERE id = ?
+      `,
+      input.status,
+      input.configSha256,
+      input.configBlob,
+      input.diffSha256,
+      input.changeSummary ? JSON.stringify(input.changeSummary) : null,
+      input.errorText,
+      now,
+      now,
+      existing.id,
+    );
+
+    return this.getSiteConfigSnapshot(input.siteId, existing.id);
   },
 });

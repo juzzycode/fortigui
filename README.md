@@ -117,6 +117,7 @@ npm run build
 - Live derived profile catalogs now flow through `/api/profiles`, grouping observed switch, AP, SSID, VLAN, and port policy data by the selected site scope.
 - Live firmware compliance now flows through `/api/firmware`, organizing switch and AP versions into rollout-ready groups.
 - Authentication now flows through `/api/auth/*`, with session cookies protecting live inventory routes and `/api/users` handling operator management.
+- Each live site can now archive a full FortiGate configuration once per day, expose downloadable daily snapshots, and render diffs between archived days directly from the site detail view.
 - Expand the FortiGate client in `server/lib/fortigate-client.js` with more endpoints as device inventory moves off mock data.
 - Use `server/index.js` plus the SQLite-backed gateway cache for real firewall or gateway config retrieval.
 - Keep page components unchanged where possible by preserving return shapes from the mock service layer.
@@ -127,6 +128,7 @@ npm run build
 
 - The UI supports light and dark themes.
 - The UI now has a real login page, session-backed logout, and three enforced roles: `super_admin`, `site_admin`, and `read_only`.
+- Site detail now includes a config archive section with daily FortiGate backups, downloadable config files, and diffs between snapshot days.
 - Mock device actions like reboot, blink LED, port toggle, and profile assignment are routed through a service function so they can later call backend command endpoints.
 - Tables, drawers, summary panels, and charts are reusable and structured for future expansion.
 - Gateway config caching is documented in `docs/GATEWAYS.md`.

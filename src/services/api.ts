@@ -1,5 +1,5 @@
 import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, switches as demoSwitches, vlanProfiles } from '@/mocks/data';
-import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, ManagedUser, RogueAccessPoint, Site, SwitchDevice } from '@/types/models';
+import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, ManagedUser, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SwitchDevice } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const authRequiredEventName = 'edgeops:auth-required';
@@ -92,6 +92,7 @@ const jsonRequest = async <T,>(input: string, init?: RequestInit) => {
 
 export const api = {
   authRequiredEventName,
+  getDownloadUrl: (input: string) => withApiBase(input),
   login: async (payload: { username: string; password: string }) =>
     jsonRequest<{ session: AuthSession }>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }).then((result) => result.session),
   getSession: async () => jsonRequest<{ session: AuthSession }>('/api/auth/session').then((result) => result.session),
@@ -125,6 +126,20 @@ export const api = {
   },
   getSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites),
   getSiteById: async (id: string) => jsonRequest<{ site: Site }>(`/api/sites/${id}`).then((payload) => payload.site),
+  getSiteConfigSnapshots: async (siteId: string) =>
+    jsonRequest<{ snapshots: SiteConfigSnapshot[] }>(`/api/sites/${encodeURIComponent(siteId)}/config-snapshots`).then((payload) => payload.snapshots),
+  syncSiteConfigSnapshot: async (siteId: string, force = true) =>
+    jsonRequest<{ snapshot: SiteConfigSnapshot }>(`/api/sites/${encodeURIComponent(siteId)}/config-snapshots/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ force }),
+    }).then((payload) => payload.snapshot),
+  getSiteConfigDiff: async (siteId: string, options?: { fromSnapshotId?: string; toSnapshotId?: string }) => {
+    const search = new URLSearchParams();
+    if (options?.fromSnapshotId) search.set('fromSnapshotId', options.fromSnapshotId);
+    if (options?.toSnapshotId) search.set('toSnapshotId', options.toSnapshotId);
+    const query = search.toString();
+    return jsonRequest<{ diff: SiteConfigDiff }>(`/api/sites/${encodeURIComponent(siteId)}/config-diffs${query ? `?${query}` : ''}`).then((payload) => payload.diff);
+  },
   createSite: async (payload: {
     name: string;
     address: string;

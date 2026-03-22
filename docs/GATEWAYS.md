@@ -6,6 +6,7 @@ The backend scaffold supports storing firewall or gateway connection metadata, a
 
 It also includes site onboarding endpoints for storing site metadata and FortiGate connection details.
 Site summaries now cache a `ping` probe as well, so the UI can show average latency, packet loss, and the last ping timestamp alongside FortiGate API reachability.
+Live sites now also maintain a per-site FortiGate config archive with one daily snapshot, downloadable config files, and diffs between archived days.
 
 ## Storage Model
 
@@ -14,6 +15,7 @@ SQLite tables:
 - `gateways`
 - `gateway_api_keys`
 - `gateway_config_cache`
+- `site_config_snapshots`
 
 ## What Gets Stored
 
@@ -42,6 +44,18 @@ For each cached config:
 - Metadata JSON
 - Error text if sync failed
 - Fetch timestamp
+
+For each site config snapshot:
+
+- Site association
+- Snapshot date
+- Success or failure state
+- Full FortiGate config payload
+- SHA-256 hash of the config
+- SHA-256 hash of the generated diff text when changes exist
+- Change summary against the previous successful day
+- Error text when the daily pull fails
+- Fetch and update timestamps
 
 ## Multiple Gates And Keys
 
@@ -80,6 +94,39 @@ If `EDGEOPS_SECRET` is not set, keys fall back to local base64 encoding so devel
 `DELETE /api/sites/:id`
 
 `POST /api/sites/load-demo`
+
+### Site Config Archive
+
+`GET /api/sites/:id/config-snapshots`
+
+Returns the archived daily FortiGate config snapshots for a site.
+
+`POST /api/sites/:id/config-snapshots/sync`
+
+Forces a fresh pull for today's FortiGate config snapshot.
+
+Optional body:
+
+```json
+{
+  "force": true
+}
+```
+
+`GET /api/sites/:id/config-snapshots/:snapshotId/download`
+
+Downloads the full archived config file for that snapshot day.
+
+`GET /api/sites/:id/config-diffs`
+
+Builds a diff between two successful archived snapshots.
+
+Optional query parameters:
+
+- `fromSnapshotId`
+- `toSnapshotId`
+
+If you omit them, the API compares the two newest successful daily snapshots.
 
 Example create-site body:
 

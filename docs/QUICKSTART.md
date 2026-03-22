@@ -87,6 +87,19 @@ After the first login:
 - use `Settings` to create `super_admin`, `site_admin`, and `read_only` operators
 - use site assignment on users when you want the backend to scope them to a single site
 
+## Daily FortiGate Config Archive
+
+Each live site can now archive the full FortiGate configuration once per day.
+
+How it works:
+
+- the backend checks for a daily snapshot in the background while it is running
+- successful snapshots are stored per site in the site database
+- failed daily attempts are retried on later scheduler passes until a successful snapshot exists for that date
+- the site detail page shows the archive, daily download links, and diffs between successful days
+
+You can also force a fresh pull for today from the site detail page with `Refresh Today's Snapshot`.
+
 ## Build
 
 Only run this when you want to test a production build:
