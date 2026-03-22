@@ -26,8 +26,7 @@ export const createSwitchesRouter = ({ siteStore, fortiGateClient }) => {
     const sites = await siteStore.listSites();
 
     for (const site of sites) {
-      const switches = await fortiGateClient.listManagedSwitchesForSite(site).catch(() => []);
-      const device = switches.find((item) => item.id === request.params.id);
+      const device = await fortiGateClient.getManagedSwitchDetailForSite(site, request.params.id).catch(() => null);
       if (device) {
         response.json({ switch: device });
         return;

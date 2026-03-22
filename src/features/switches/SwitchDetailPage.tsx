@@ -87,7 +87,10 @@ export const SwitchDetailPage = () => {
           <div className="space-y-3">
             {device.ports.filter((port) => port.neighbor || port.vlan).slice(0, 8).map((port) => (
               <div key={port.id} className="rounded-2xl bg-soft px-4 py-3">
-                <p className="text-sm font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
+                  {port.tags?.length ? <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">{port.tags.join(' / ')}</span> : null}
+                </div>
                 <p className="mt-1 text-xs text-muted">VLAN: {port.vlan}</p>
                 <p className="mt-1 text-xs text-muted">Neighbor: {port.neighbor ?? 'Endpoint / no LLDP data'}</p>
               </div>

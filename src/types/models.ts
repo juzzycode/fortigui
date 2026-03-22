@@ -41,6 +41,24 @@ export interface SwitchPort {
   profileId: string;
   clientCount: number;
   neighbor?: string;
+  isTrunk?: boolean;
+  isUplink?: boolean;
+  tags?: string[];
+  uplinkReasons?: string[];
+  stats?: SwitchPortStats;
+}
+
+export interface SwitchPortStats {
+  rxBytes: number;
+  txBytes: number;
+  rxPackets: number;
+  txPackets: number;
+  rxErrors: number;
+  txErrors: number;
+  rxDrops: number;
+  txDrops: number;
+  crcAlignments: number;
+  l3Packets: number;
 }
 
 export interface SwitchDevice {
