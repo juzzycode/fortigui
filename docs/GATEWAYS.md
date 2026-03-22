@@ -60,6 +60,8 @@ If `EDGEOPS_SECRET` is not set, keys fall back to local base64 encoding so devel
 
 ### API Index
 
+`GET /`
+
 `GET /api`
 
 ### Interactive API Docs

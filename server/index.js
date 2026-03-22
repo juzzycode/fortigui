@@ -19,6 +19,74 @@ const start = async () => {
 
   app.use(express.json());
 
+  app.get('/', (_request, response) => {
+    response.type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EdgeOps Gateway Cache API</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09111d;
+        --panel: #111c2e;
+        --border: #223149;
+        --text: #ecf3ff;
+        --muted: #9bb0c9;
+        --accent: #2dd4bf;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: radial-gradient(circle at top left, rgba(45,212,191,0.14), transparent 26%), var(--bg);
+        color: var(--text);
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+      .panel {
+        background: rgba(17, 28, 46, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 18px 50px rgba(0,0,0,0.24);
+      }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      p { color: var(--muted); line-height: 1.6; }
+      ul { padding-left: 18px; }
+      li { margin: 10px 0; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        padding: 2px 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="panel">
+        <h1>EdgeOps Gateway Cache API</h1>
+        <p>Gateway inventory, API key storage, and cached configuration retrieval for EdgeOps Cloud.</p>
+        <ul>
+          <li><a href="/api">JSON API index</a> <code>GET /api</code></li>
+          <li><a href="/api/docs">Swagger UI</a> <code>GET /api/docs</code></li>
+          <li><a href="/api/openapi.json">OpenAPI spec</a> <code>GET /api/openapi.json</code></li>
+          <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
+          <li><a href="/api/gateways">Gateway list</a> <code>GET /api/gateways</code></li>
+        </ul>
+        <p>Configured port: <code>${serverConfig.port}</code></p>
+      </div>
+    </main>
+  </body>
+</html>`);
+  });
+
   app.get('/api', (_request, response) => {
     response.json({
       name: 'EdgeOps Gateway Cache API',
