@@ -1,5 +1,5 @@
-import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, sites, switches, vlanProfiles } from '@/mocks/data';
-import type { SetupStatus } from '@/types/models';
+import { accessPoints, alerts, bandwidthUsage, clients, deviceProfiles, eventLogs, firmwareStatuses, portProfiles, switches, vlanProfiles } from '@/mocks/data';
+import type { Site } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const resolveApiBaseUrl = () => {
@@ -52,9 +52,24 @@ const jsonRequest = async <T,>(input: string, init?: RequestInit) => {
 };
 
 export const api = {
-  getDashboard: async () => delay({ sites, switches, accessPoints, clients, alerts, firmwareStatuses, bandwidthUsage }),
-  getSites: async () => delay(sites),
-  getSiteById: async (id: string) => delay(sites.find((site) => site.id === id) ?? null),
+  getDashboard: async () => {
+    const sites = await jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites).catch(() => []);
+    return delay({ sites, switches, accessPoints, clients, alerts, firmwareStatuses, bandwidthUsage });
+  },
+  getSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites').then((payload) => payload.sites),
+  getSiteById: async (id: string) => jsonRequest<{ site: Site }>(`/api/sites/${id}`).then((payload) => payload.site),
+  createSite: async (payload: {
+    name: string;
+    address: string;
+    timezone: string;
+    region: string;
+    fortigateName: string;
+    fortigateIp: string;
+    fortigateApiKey: string;
+    adminUsername?: string;
+    adminPassword?: string;
+  }) => jsonRequest<{ site: Site }>('/api/sites', { method: 'POST', body: JSON.stringify(payload) }).then((payload) => payload.site),
+  loadDemoSites: async () => jsonRequest<{ sites: Site[] }>('/api/sites/load-demo', { method: 'POST' }).then((payload) => payload.sites),
   getSwitches: async () => delay(switches),
   getSwitchById: async (id: string) => delay(switches.find((device) => device.id === id) ?? null),
   getAps: async () => delay(accessPoints),
@@ -64,13 +79,6 @@ export const api = {
   getFirmwareStatuses: async () => delay(firmwareStatuses),
   getProfiles: async () => delay({ deviceProfiles, vlanProfiles, portProfiles }),
   getEventLogsByTarget: async (targetId: string) => delay(eventLogs.filter((entry) => entry.targetId === targetId)),
-  getSetupStatus: async () => jsonRequest<SetupStatus>('/api/setup/status'),
-  saveSetupWizard: async (payload: {
-    username: string;
-    password: string;
-    fortigateIp: string;
-    fortigateApiKey: string;
-  }) => jsonRequest<SetupStatus>('/api/setup/wizard', { method: 'POST', body: JSON.stringify(payload) }),
   simulateDeviceAction: async (action: string, targetId: string, payload?: Record<string, string | boolean>) =>
     delay({ success: true, action, targetId, payload, message: `${action} queued for ${targetId}` }, 450),
 };

@@ -3,26 +3,33 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { serverConfig } from './config.js';
 import { createDatabase } from './lib/database.js';
+import { createFortiGateClient } from './lib/fortigate-client.js';
 import { createGatewayConfigService } from './lib/gateway-config-service.js';
 import { createGatewayRepository } from './lib/gateway-repository.js';
+import { createSiteStore } from './lib/site-store.js';
 import { createSetupStore } from './lib/setup-store.js';
 import { createOpenApiDocument } from './openapi.js';
 import { createGatewayRouter } from './routes/gateways.js';
 import { createSetupRouter } from './routes/setup.js';
+import { createSitesRouter } from './routes/sites.js';
 
 const verboseLogging = process.argv.includes('-v') || process.argv.includes('--verbose');
 
 const start = async () => {
   const app = express();
   const db = await createDatabase(serverConfig.dbPath);
+  const sitesDb = await createDatabase(serverConfig.sitesDbPath);
   const setupStore = await createSetupStore({
     files: serverConfig.setupFiles,
     secret: serverConfig.secret,
   });
+  const siteStore = createSiteStore({ db: sitesDb });
+  await siteStore.init();
   const repository = createGatewayRepository({
     db,
     secret: serverConfig.secret,
   });
+  const fortiGateClient = createFortiGateClient();
   const gatewayConfigService = createGatewayConfigService({ repository });
   const openApiDocument = createOpenApiDocument({ port: serverConfig.port, setupFiles: serverConfig.setupFiles });
 
@@ -52,7 +59,7 @@ const start = async () => {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EdgeOps Gateway Cache API</title>
+    <title>EdgeOps Cloud API</title>
     <style>
       :root {
         color-scheme: dark;
@@ -98,14 +105,14 @@ const start = async () => {
   <body>
     <main>
       <div class="panel">
-        <h1>EdgeOps Gateway Cache API</h1>
-        <p>Gateway inventory, API key storage, and cached configuration retrieval for EdgeOps Cloud.</p>
+        <h1>EdgeOps Cloud API</h1>
+        <p>Site onboarding, live FortiGate summaries, gateway key storage, and cached configuration retrieval for EdgeOps Cloud.</p>
         <ul>
           <li><a href="/api">JSON API index</a> <code>GET /api</code></li>
           <li><a href="/api/docs">Swagger UI</a> <code>GET /api/docs</code></li>
           <li><a href="/api/openapi.json">OpenAPI spec</a> <code>GET /api/openapi.json</code></li>
           <li><a href="/api/health">Health check</a> <code>GET /api/health</code></li>
-          <li><a href="/api/setup/status">Setup status</a> <code>GET /api/setup/status</code></li>
+          <li><a href="/api/sites">Sites</a> <code>GET /api/sites</code></li>
           <li><a href="/api/gateways">Gateway list</a> <code>GET /api/gateways</code></li>
         </ul>
         <p>Configured port: <code>${serverConfig.port}</code></p>
@@ -117,17 +124,20 @@ const start = async () => {
 
   app.get('/api', (_request, response) => {
     response.json({
-      name: 'EdgeOps Gateway Cache API',
+      name: 'EdgeOps Cloud API',
       version: '1.0.0',
-        docs: '/api/docs',
-        openApi: '/api/openapi.json',
-        routes: {
-          health: '/api/health',
-          setupStatus: '/api/setup/status',
-          setupWizard: '/api/setup/wizard',
-          gateways: '/api/gateways',
-          gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
-          syncConfig: '/api/gateways/:gatewayId/sync-config',
+      docs: '/api/docs',
+      openApi: '/api/openapi.json',
+      routes: {
+        health: '/api/health',
+        setupStatus: '/api/setup/status',
+        setupWizard: '/api/setup/wizard',
+        sites: '/api/sites',
+        siteDetail: '/api/sites/:id',
+        loadDemoSites: '/api/sites/load-demo',
+        gateways: '/api/gateways',
+        gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
+        syncConfig: '/api/gateways/:gatewayId/sync-config',
         configCache: '/api/gateways/:gatewayId/config-cache',
         latestConfigCache: '/api/gateways/:gatewayId/config-cache/latest',
       },
@@ -147,6 +157,7 @@ const start = async () => {
 
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.use('/api/setup', createSetupRouter({ setupStore }));
+  app.use('/api/sites', createSitesRouter({ siteStore, fortiGateClient }));
 
   app.use(
     '/api/gateways',

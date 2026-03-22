@@ -1,6 +1,6 @@
 const examples = {
   apiIndex: {
-    name: 'EdgeOps Gateway Cache API',
+    name: 'EdgeOps Cloud API',
     version: '1.0.0',
     docs: '/api/docs',
     openApi: '/api/openapi.json',
@@ -8,6 +8,9 @@ const examples = {
       health: '/api/health',
       setupStatus: '/api/setup/status',
       setupWizard: '/api/setup/wizard',
+      sites: '/api/sites',
+      siteDetail: '/api/sites/:id',
+      loadDemoSites: '/api/sites/load-demo',
       gateways: '/api/gateways',
       gatewayApiKeys: '/api/gateways/:gatewayId/api-keys',
       syncConfig: '/api/gateways/:gatewayId/sync-config',
@@ -18,6 +21,84 @@ const examples = {
   health: {
     ok: true,
     dbPath: '/app/data/edgeops-cache.sqlite',
+  },
+  site: {
+    id: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+    shorthandId: 'site-den',
+    name: 'Denver Branch',
+    address: '1801 California St, Denver, CO',
+    timezone: 'America/Denver',
+    region: 'Mountain',
+    status: 'healthy',
+    wanStatus: 'online',
+    clientCount: 0,
+    switchCount: 0,
+    apCount: 0,
+    fortigateName: 'DEN-BRANCH-FGT',
+    fortigateIp: '192.0.2.14',
+    fortigateVersion: 'v7.4.5',
+    fortigateSerial: 'FGT60FTK24000001',
+    addressObjectCount: 17,
+    apiReachable: true,
+    lastSyncError: null,
+    source: 'live',
+  },
+  siteCreateRequest: {
+    name: 'Denver Branch',
+    address: '1801 California St, Denver, CO',
+    timezone: 'America/Denver',
+    region: 'Mountain',
+    fortigateName: 'DEN-BRANCH-FGT',
+    fortigateIp: '192.0.2.14',
+    fortigateApiKey: 'replace-with-real-fortigate-key',
+    adminUsername: 'admin',
+    adminPassword: 'replace-if-needed',
+  },
+  siteList: {
+    sites: [
+      {
+        id: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+        shorthandId: 'site-den',
+        name: 'Denver Branch',
+        address: '1801 California St, Denver, CO',
+        timezone: 'America/Denver',
+        region: 'Mountain',
+        status: 'healthy',
+        wanStatus: 'online',
+        clientCount: 0,
+        switchCount: 0,
+        apCount: 0,
+        fortigateName: 'DEN-BRANCH-FGT',
+        fortigateIp: '192.0.2.14',
+        fortigateVersion: 'v7.4.5',
+        fortigateSerial: 'FGT60FTK24000001',
+        addressObjectCount: 17,
+        apiReachable: true,
+        lastSyncError: null,
+        source: 'live',
+      },
+      {
+        id: 'site_5367fce5-bf96-4653-8a9b-9f9fdabf9d2e',
+        shorthandId: 'site-sea',
+        name: 'Seattle Warehouse',
+        address: '301 Elliott Ave W, Seattle, WA',
+        timezone: 'America/Los_Angeles',
+        region: 'West',
+        status: 'healthy',
+        wanStatus: 'online',
+        clientCount: 97,
+        switchCount: 4,
+        apCount: 6,
+        fortigateName: 'Seattle Warehouse FortiGate',
+        fortigateIp: '',
+        fortigateVersion: null,
+        fortigateSerial: null,
+        addressObjectCount: 0,
+        apiReachable: false,
+        lastSyncError: null,
+        source: 'demo',
+      },
+    ],
   },
   setupStatus: {
     complete: false,
@@ -215,6 +296,47 @@ const components = {
         error: { type: 'string' },
       },
     },
+    Site: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        shorthandId: { type: 'string' },
+        name: { type: 'string' },
+        address: { type: 'string' },
+        timezone: { type: 'string' },
+        region: { type: 'string' },
+        status: { type: 'string', enum: ['healthy', 'warning', 'critical', 'offline'] },
+        wanStatus: { type: 'string', enum: ['online', 'degraded', 'offline'] },
+        clientCount: { type: 'integer' },
+        switchCount: { type: 'integer' },
+        apCount: { type: 'integer' },
+        fortigateName: { type: 'string', nullable: true },
+        fortigateIp: { type: 'string', nullable: true },
+        fortigateVersion: { type: 'string', nullable: true },
+        fortigateSerial: { type: 'string', nullable: true },
+        addressObjectCount: { type: 'integer' },
+        apiReachable: { type: 'boolean' },
+        lastSyncError: { type: 'string', nullable: true },
+        source: { type: 'string', enum: ['live', 'demo'] },
+      },
+      example: examples.site,
+    },
+    SiteCreateRequest: {
+      type: 'object',
+      required: ['name', 'address', 'timezone', 'region'],
+      properties: {
+        name: { type: 'string', example: 'Denver Branch' },
+        address: { type: 'string', example: '1801 California St, Denver, CO' },
+        timezone: { type: 'string', example: 'America/Denver' },
+        region: { type: 'string', example: 'Mountain' },
+        fortigateName: { type: 'string', example: 'DEN-BRANCH-FGT' },
+        fortigateIp: { type: 'string', example: '192.0.2.14' },
+        fortigateApiKey: { type: 'string', example: 'replace-with-real-fortigate-key' },
+        adminUsername: { type: 'string', example: 'admin' },
+        adminPassword: { type: 'string', example: 'replace-if-needed' },
+      },
+      example: examples.siteCreateRequest,
+    },
     Gateway: {
       type: 'object',
       properties: {
@@ -304,6 +426,7 @@ export const createOpenApiDocument = ({ port }) => ({
   tags: [
     { name: 'Health', description: 'Server health and discovery endpoints' },
     { name: 'Setup', description: 'Startup wizard state and bootstrap configuration' },
+    { name: 'Sites', description: 'Site onboarding and live FortiGate summaries' },
     { name: 'Gateways', description: 'Gateway inventory and metadata management' },
     { name: 'API Keys', description: 'Gateway API key storage and listing' },
     { name: 'Config Cache', description: 'Gateway config sync and cached config retrieval' },
@@ -424,6 +547,156 @@ export const createOpenApiDocument = ({ port }) => ({
                     value: {
                       error: 'username, password, fortigateIp, and fortigateApiKey are required',
                     },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/sites': {
+      get: {
+        tags: ['Sites'],
+        summary: 'List sites',
+        description: 'Returns all configured sites with live or demo FortiGate summary data.',
+        responses: {
+          200: {
+            description: 'Site list',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    sites: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/Site' },
+                    },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: examples.siteList,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ['Sites'],
+        summary: 'Create a site',
+        description: 'Creates site metadata and FortiGate connection settings. The shorthand site id is generated automatically.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SiteCreateRequest' },
+              examples: {
+                default: {
+                  value: examples.siteCreateRequest,
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Site created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    site: { $ref: '#/components/schemas/Site' },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: { site: examples.site },
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: 'Validation error',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                examples: {
+                  default: {
+                    value: { error: 'name, address, timezone, and region are required' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/sites/load-demo': {
+      post: {
+        tags: ['Sites'],
+        summary: 'Seed demo sites',
+        description: 'Adds the built-in sample sites if they are not already present.',
+        responses: {
+          201: {
+            description: 'Demo sites created or returned',
+            content: {
+              'application/json': {
+                examples: {
+                  default: {
+                    value: examples.siteList,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/sites/{siteId}': {
+      get: {
+        tags: ['Sites'],
+        summary: 'Get site detail',
+        parameters: [
+          {
+            name: 'siteId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'site_0e7d6a46-0402-4d47-9f49-5623b122f27d',
+          },
+        ],
+        responses: {
+          200: {
+            description: 'Site detail',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    site: { $ref: '#/components/schemas/Site' },
+                  },
+                },
+                examples: {
+                  default: {
+                    value: { site: examples.site },
+                  },
+                },
+              },
+            },
+          },
+          404: {
+            description: 'Site not found',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ErrorResponse' },
+                examples: {
+                  default: {
+                    value: { error: 'Site not found' },
                   },
                 },
               },

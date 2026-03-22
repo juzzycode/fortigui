@@ -1,9 +1,11 @@
 import type { PropsWithChildren } from 'react';
 import { Bell, ChevronDown, Command, MoonStar, Search, SunMedium, UserCircle2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { sites } from '@/mocks/data';
 import { cn } from '@/lib/utils';
+import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
+import type { Site } from '@/types/models';
 
 const navItems = [
   ['Dashboard', '/dashboard'],
@@ -19,7 +21,12 @@ const navItems = [
 
 export const AppShell = ({ children }: PropsWithChildren) => {
   const location = useLocation();
+  const [sites, setSites] = useState<Site[]>([]);
   const { role, theme, selectedSiteId, setRole, setSelectedSiteId, toggleTheme, commandPaletteOpen, setCommandPaletteOpen } = useAppStore();
+
+  useEffect(() => {
+    api.getSites().then(setSites).catch(() => setSites([]));
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen">

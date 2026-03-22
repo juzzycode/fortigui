@@ -4,7 +4,7 @@
 
 The backend scaffold supports storing firewall or gateway connection metadata, attaching multiple API keys per gateway, and downloading each gateway configuration into a local SQLite cache.
 
-It also includes a startup wizard flow for initial FortiGate bootstrap details.
+It also includes site onboarding endpoints for storing site metadata and FortiGate connection details.
 
 ## Storage Model
 
@@ -15,13 +15,6 @@ SQLite tables:
 - `gateway_config_cache`
 
 ## What Gets Stored
-
-Startup wizard values are stored in separate SQLite files:
-
-- Username
-- Password
-- FortiGate IP
-- FortiGate API key
 
 For each gateway:
 
@@ -73,11 +66,39 @@ If `EDGEOPS_SECRET` is not set, keys fall back to local base64 encoding so devel
 
 `GET /api`
 
-### Startup Wizard
+### Sites
+
+`GET /api/sites`
+
+`POST /api/sites`
+
+`GET /api/sites/:id`
+
+`POST /api/sites/load-demo`
+
+Example create-site body:
+
+```json
+{
+  "name": "Denver Branch",
+  "address": "1801 California St, Denver, CO",
+  "timezone": "America/Denver",
+  "region": "Mountain",
+  "fortigateName": "DEN-BRANCH-FGT",
+  "fortigateIp": "192.0.2.14",
+  "fortigateApiKey": "replace-with-real-fortigate-key",
+  "adminUsername": "admin",
+  "adminPassword": "replace-if-needed"
+}
+```
+
+### Setup Compatibility
 
 `GET /api/setup/status`
 
 `POST /api/setup/wizard`
+
+These older bootstrap endpoints are still present for compatibility, but the preferred workflow is now the `Add Site` flow in the Sites UI.
 
 ### Interactive API Docs
 

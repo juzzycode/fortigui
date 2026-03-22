@@ -34,17 +34,17 @@ Use this when you only want to work on the React UI.
 
 ### Frontend Plus Gateway API
 
-If you also want the local gateway cache backend running, start it in a second terminal:
+If you also want the local backend running, start it in a second terminal:
 
 ```bash
 npm run server
 ```
 
 The backend automatically reads `.env` for `EDGEOPS_PORT`, `EDGEOPS_DB_PATH`, and `EDGEOPS_SECRET`.
-On first load, the frontend now checks backend setup status and shows a startup wizard until the required setup files exist.
+Sites are now onboarded from the UI with an Add Site wizard under `/sites`, where you can enter the site metadata plus FortiGate connection details.
 If your frontend cannot reach the backend on the same origin, set `VITE_API_BASE_URL`, for example `VITE_API_BASE_URL=http://192.168.1.10:18787`.
 If you accidentally use `http://localhost:18787` while opening the UI from another device, the frontend now rewrites that to the current browser host automatically.
-The backend also allows cross-origin requests by default for this setup flow.
+The backend also allows cross-origin requests by default for this flow.
 
 Then run the frontend dev server:
 
@@ -90,9 +90,9 @@ npm run build
 - `src/features`
   - Page-oriented feature modules for dashboard, switches, APs, sites, clients, alerts, profiles, firmware, and settings.
 - `src/mocks`
-  - Seed data for sites, switches, APs, clients, alerts, firmware, profiles, and event logs.
+  - Seed data for switches, APs, clients, alerts, firmware, profiles, and event logs plus optional demo sites.
 - `src/services`
-  - Mock API service functions that intentionally mirror future async REST calls.
+  - Async API service functions with live site calls and mock inventory modules for the rest of the UI.
 - `src/store`
   - Lightweight global UI state for theme, role, site selection, command palette state, and live refresh ticks.
 - `src/types`
@@ -100,7 +100,8 @@ npm run build
 
 ## Real API Integration Seams
 
-- Replace `src/services/api.ts` mock functions with real REST client calls.
+- Site onboarding and FortiGate summaries already flow through `server/routes/sites.js` and `src/services/api.ts`.
+- Expand the FortiGate client in `server/lib/fortigate-client.js` with more endpoints as device inventory moves off mock data.
 - Use `server/index.js` plus the SQLite-backed gateway cache for real firewall or gateway config retrieval.
 - Keep page components unchanged where possible by preserving return shapes from the mock service layer.
 - Add websocket or SSE subscriptions in `src/app/App.tsx` or a dedicated live data provider.

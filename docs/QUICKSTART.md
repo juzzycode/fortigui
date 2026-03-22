@@ -12,7 +12,7 @@ EdgeOps Cloud is a frontend-first network management UI for:
 - Profiles
 - Firmware lifecycle
 
-This project currently uses mocked data and a mock async service layer so real APIs can be connected later without rewriting the UI.
+The site onboarding flow now uses real backend calls, while the broader switch, AP, client, and alert modules still use a mock async service layer so they can be swapped to real APIs incrementally.
 
 ## Prerequisites
 
@@ -49,6 +49,20 @@ Only run this if you want the local backend running too:
 
 ```bash
 npm run server
+
+With the backend running, open `/sites` and use `Add Site` to enter:
+
+- Site name
+- Address
+- Timezone
+- Region
+- FortiGate name
+- FortiGate IP
+- FortiGate API key
+
+The backend generates a shorthand site id like `site-den` automatically and then polls the FortiGate for a live summary.
+
+If you want sample locations instead, use `Load Demo Data` from the Sites page.
 ```
 
 ## Build
@@ -120,7 +134,7 @@ Today the UI reads from `src/services/api.ts`.
 
 To connect real backend APIs later:
 
-1. Replace mock functions with real HTTP client calls.
+1. Expand the existing live site HTTP calls in `src/services/api.ts`.
 2. Preserve returned data shapes where possible.
 3. Add websocket or SSE subscriptions for live updates.
 4. Move role rules from UI hints into real authorization checks.

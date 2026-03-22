@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
-import { MapPinned } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Cable, Fingerprint, Globe2, KeyRound, MapPinned, ShieldCheck, Waypoints } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { accessPoints, alerts, switches } from '@/mocks/data';
 import { api } from '@/services/api';
 import type { Site } from '@/types/models';
 
@@ -15,66 +14,82 @@ export const SiteDetailPage = () => {
   const [site, setSite] = useState<Site | null>();
 
   useEffect(() => {
-    api.getSiteById(id).then(setSite);
+    api.getSiteById(id).then(setSite).catch(() => setSite(null));
   }, [id]);
 
-  const localSwitches = useMemo(() => switches.filter((device) => device.siteId === id), [id]);
-  const localAps = useMemo(() => accessPoints.filter((device) => device.siteId === id), [id]);
-  const localAlerts = useMemo(() => alerts.filter((alert) => alert.siteId === id), [id]);
-
   if (site === undefined) return <LoadingState label="Loading site detail..." />;
-  if (site === null) return <ErrorState title="Site not found" description="The requested site does not exist in mock inventory." />;
+  if (site === null) return <ErrorState title="Site not found" description="The requested site does not exist or the backend could not return it." />;
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Site Detail" title={site.name} description={`${site.address} • ${site.timezone}. Site pages are structured for future WAN, topology, and policy drilldowns.`} />
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <Panel title="Site Summary">
+      <PageHeader
+        eyebrow="Site Detail"
+        title={site.name}
+        description={`${site.address} - ${site.timezone}. This view is now driven by live FortiGate summary calls instead of the earlier placeholder layout.`}
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <Panel title="Site Summary" subtitle="Core location metadata and generated shorthand id.">
           <div className="grid gap-4 md:grid-cols-2">
             <SummaryItem label="Health" value={<StatusBadge value={site.status} />} />
+            <SummaryItem label="Site ID" value={site.shorthandId ?? 'Pending'} />
             <SummaryItem label="WAN Status" value={site.wanStatus} />
-            <SummaryItem label="Switches" value={site.switchCount} />
-            <SummaryItem label="Access Points" value={site.apCount} />
-            <SummaryItem label="Clients" value={site.clientCount} />
+            <SummaryItem label="Source" value={site.source ?? 'live'} />
             <SummaryItem label="Region" value={site.region} />
+            <SummaryItem label="Timezone" value={site.timezone} />
           </div>
         </Panel>
-        <Panel title="Map Placeholder" subtitle="Reserved for geospatial context and WAN edge overlay.">
-          <div className="flex min-h-72 items-center justify-center rounded-[28px] border border-dashed border-border bg-soft text-center">
-            <div><MapPinned className="mx-auto h-10 w-10 text-accent" /><p className="mt-4 text-lg font-semibold text-text">Location map placeholder</p><p className="mt-2 text-subtle">Embed real site mapping, edge circuits, and latency overlays here later.</p></div>
+
+        <Panel title="Address" subtitle="Location metadata stored with the site record.">
+          <div className="flex min-h-56 flex-col justify-between rounded-[28px] bg-soft p-5">
+            <div>
+              <div className="inline-flex rounded-2xl bg-accent/10 p-3 text-accent">
+                <MapPinned className="h-5 w-5" />
+              </div>
+              <p className="mt-4 text-lg font-semibold text-text">{site.address}</p>
+              <p className="mt-2 text-sm text-muted">Use this panel later for geo lookups, map overlays, and circuit annotations without changing the site contract.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <MiniTile icon={Cable} label="Switches" value={String(site.switchCount)} />
+              <MiniTile icon={Waypoints} label="APs" value={String(site.apCount)} />
+              <MiniTile icon={Globe2} label="Clients" value={String(site.clientCount)} />
+            </div>
           </div>
         </Panel>
       </div>
+
       <div className="grid gap-6 xl:grid-cols-3">
-        <Panel title="Switch Summary">
+        <Panel title="FortiGate Connection" subtitle="Live summary pulled from the FortiGate REST API.">
           <div className="space-y-3">
-            {localSwitches.map((device) => (
-              <div key={device.id} className="rounded-2xl bg-soft p-4">
-                <div className="flex items-center justify-between gap-3"><span className="font-semibold text-text">{device.hostname}</span><StatusBadge value={device.status} /></div>
-                <p className="mt-2 text-xs text-muted">{device.model} • {device.portsUsed}/{device.totalPorts} ports used</p>
-              </div>
-            ))}
+            <DetailRow label="FortiGate Name" value={site.fortigateName || 'Not configured'} />
+            <DetailRow label="FortiGate IP" value={site.fortigateIp || 'Not configured'} />
+            <DetailRow label="API Reachable" value={site.apiReachable ? 'Yes' : 'No'} />
+            <DetailRow label="Address Objects" value={String(site.addressObjectCount ?? 0)} />
           </div>
         </Panel>
-        <Panel title="Wireless Summary">
+
+        <Panel title="Firmware and Identity" subtitle="Returned from the monitor system status call when available.">
           <div className="space-y-3">
-            {localAps.map((device) => (
-              <div key={device.id} className="rounded-2xl bg-soft p-4">
-                <div className="flex items-center justify-between gap-3"><span className="font-semibold text-text">{device.name}</span><StatusBadge value={device.status} /></div>
-                <p className="mt-2 text-xs text-muted">{device.clients} clients • {device.radios.length} radios</p>
-              </div>
-            ))}
+            <DetailRow icon={ShieldCheck} label="Version" value={site.fortigateVersion || 'Unavailable'} />
+            <DetailRow icon={Fingerprint} label="Serial" value={site.fortigateSerial || 'Unavailable'} />
+            <DetailRow icon={KeyRound} label="Polling State" value={site.apiReachable ? 'Authenticated' : 'Needs attention'} />
           </div>
         </Panel>
-        <Panel title="Recent Alerts">
-          <div className="space-y-3">
-            {localAlerts.map((alert) => (
-              <div key={alert.id} className="rounded-2xl border border-border bg-soft p-4">
-                <StatusBadge value={alert.severity} type="severity" />
-                <p className="mt-3 text-sm font-semibold text-text">{alert.title}</p>
-                <p className="mt-2 text-xs text-muted">{alert.type}</p>
-              </div>
-            ))}
+
+        <Panel title="Connection Health" subtitle="Useful when API access or certificates are not ready yet.">
+          {site.lastSyncError ? (
+            <div className="rounded-3xl border border-danger/20 bg-danger/10 p-4">
+              <p className="text-sm font-semibold text-danger">Last sync error</p>
+              <p className="mt-2 text-sm text-danger/90">{site.lastSyncError}</p>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+              <p className="text-sm font-semibold text-emerald-300">FortiGate summary is current</p>
+              <p className="mt-2 text-sm text-emerald-100/80">The API call returned successfully and the site is using live summary data.</p>
+            </div>
+          )}
+          <div className="mt-4 rounded-3xl bg-soft p-4 text-sm text-muted">
+            The backend currently queries FortiGate system status and firewall address objects. That gives us a reliable live foothold before we expand into interface, DHCP, VPN, and policy inventory calls.
           </div>
         </Panel>
       </div>
@@ -86,5 +101,41 @@ const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-2xl bg-soft px-4 py-3">
     <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
     <div className="mt-2 text-sm font-medium capitalize text-text">{value}</div>
+  </div>
+);
+
+const MiniTile = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Cable;
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-2xl bg-surface px-4 py-3">
+    <div className="flex items-center gap-2 text-muted">
+      <Icon className="h-4 w-4" />
+      <span className="text-xs uppercase tracking-wide">{label}</span>
+    </div>
+    <p className="mt-2 text-xl font-semibold text-text">{value}</p>
+  </div>
+);
+
+const DetailRow = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: typeof ShieldCheck;
+  label: string;
+  value: string;
+}) => (
+  <div className="flex items-center justify-between gap-4 rounded-2xl bg-soft px-4 py-3">
+    <div className="flex items-center gap-3">
+      {Icon ? <Icon className="h-4 w-4 text-accent" /> : null}
+      <span className="text-sm text-muted">{label}</span>
+    </div>
+    <span className="text-right text-sm font-medium text-text">{value}</span>
   </div>
 );

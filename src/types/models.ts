@@ -4,6 +4,7 @@ export type Role = 'super_admin' | 'site_admin' | 'read_only';
 
 export interface Site {
   id: string;
+  shorthandId?: string;
   name: string;
   address: string;
   timezone: string;
@@ -13,6 +14,14 @@ export interface Site {
   clientCount: number;
   switchCount: number;
   apCount: number;
+  fortigateName?: string;
+  fortigateIp?: string;
+  fortigateVersion?: string | null;
+  fortigateSerial?: string | null;
+  addressObjectCount?: number;
+  apiReachable?: boolean;
+  lastSyncError?: string | null;
+  source?: 'live' | 'demo';
 }
 
 export interface SwitchPort {
@@ -166,18 +175,4 @@ export interface BandwidthPoint {
   interval: string;
   inbound: number;
   outbound: number;
-}
-
-export interface SetupCheck {
-  key: 'username' | 'password' | 'fortigateIp' | 'fortigateApiKey';
-  label: string;
-  filePath: string;
-  fileExists: boolean;
-  hasValue: boolean;
-  updatedAt: string | null;
-}
-
-export interface SetupStatus {
-  complete: boolean;
-  checks: SetupCheck[];
 }
