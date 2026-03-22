@@ -25,7 +25,7 @@ export const PortMap = ({
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold">{formatPortLabel(port.portNumber)}</span>
-          <span className="text-[11px] uppercase">{port.speed}</span>
+          <span className="text-[11px] uppercase">{port.status === 'disabled' ? 'Disabled' : port.speed}</span>
         </div>
         <p className="mt-3 truncate text-xs">{port.description}</p>
         <div className="mt-2 flex items-center justify-between text-[11px]">
