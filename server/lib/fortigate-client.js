@@ -1089,6 +1089,7 @@ export const createFortiGateClient = ({ siteStore }) => ({
     if (!vlan || vlan === currentVlan) {
       return {
         changed: false,
+        verified: true,
         portName: normalizedPortNumber,
         vlan: currentVlan || vlan,
       };
@@ -1131,8 +1132,33 @@ export const createFortiGateClient = ({ siteStore }) => ({
       });
     }
 
+    const verificationPayload = await requestJson(
+      `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/cmdb/switch-controller/managed-switch`,
+      site.fortigate_api_key,
+    );
+
+    const verificationSwitches = Array.isArray(verificationPayload.results) ? verificationPayload.results : [];
+    const verifiedSwitch = verificationSwitches.find(
+      (candidate) => buildSwitchId(site.id, extractStatusField(candidate, ['sn', 'serial', 'switch-id']) || 'unknown-switch') === switchId,
+    );
+    const verifiedPort = Array.isArray(verifiedSwitch?.ports)
+      ? verifiedSwitch.ports.find((candidate) => normalizeManagedSwitchPortName(candidate?.['port-name']) === normalizedPortNumber)
+      : null;
+    const verifiedVlan = String(verifiedPort?.vlan || '').trim();
+
+    if (verifiedVlan !== vlan) {
+      return {
+        changed: true,
+        verified: false,
+        portName: normalizedPortNumber,
+        vlan: verifiedVlan || currentVlan,
+        requestedVlan: vlan,
+      };
+    }
+
     return {
       changed: true,
+      verified: true,
       portName: normalizedPortNumber,
       vlan,
     };

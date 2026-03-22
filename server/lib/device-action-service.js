@@ -122,6 +122,7 @@ export const createDeviceActionService = ({ siteStore, fortiGateClient, historyS
       const requestedVlan = typeof payload.vlan === 'string' ? payload.vlan.trim() : port.vlan;
       let vlanResult = {
         changed: false,
+        verified: true,
         vlan: port.vlan,
       };
 
@@ -134,20 +135,23 @@ export const createDeviceActionService = ({ siteStore, fortiGateClient, historyS
         switchId,
         portNumber,
         description: typeof payload.description === 'string' ? payload.description : port.description,
-        vlan: vlanResult.changed ? vlanResult.vlan : port.vlan,
+        vlan: vlanResult.changed && vlanResult.verified ? vlanResult.vlan : port.vlan,
         enabled: typeof payload.enabled === 'boolean' ? payload.enabled : port.status !== 'disabled',
         updatedBy: actorUsername,
       });
 
       return historyStore.completeActionEvent(event.id, {
-        status: 'completed',
-        message: vlanResult.changed
+        status: vlanResult.changed && !vlanResult.verified ? 'manual_required' : 'completed',
+        message: vlanResult.changed && !vlanResult.verified
+          ? `FortiGate accepted the VLAN update request, but the readback still shows ${vlanResult.vlan || port.vlan} instead of ${vlanResult.requestedVlan || requestedVlan}. The UI kept the live FortiGate VLAN to avoid drift.`
+          : vlanResult.changed
           ? 'The VLAN change was pushed to FortiGate successfully. Description and enabled state were saved in EdgeOps because per-port description and admin-state writes are not finalized yet.'
           : 'Port settings were saved in EdgeOps immediately. No VLAN change was required, and per-port description/admin-state writes are still stored locally until a stable controller mutation path is finalized.',
         result: {
           portNumber,
-          persistedIn: vlanResult.changed ? 'fortigate+edgeops' : 'edgeops',
+          persistedIn: vlanResult.changed && vlanResult.verified ? 'fortigate+edgeops' : 'edgeops',
           vlan: vlanResult.vlan,
+          requestedVlan: vlanResult.requestedVlan || requestedVlan,
         },
       });
     } catch (error) {
