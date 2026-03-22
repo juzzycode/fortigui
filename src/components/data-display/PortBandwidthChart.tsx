@@ -9,7 +9,7 @@ export const PortBandwidthChart = ({ ports }: { ports: SwitchPort[] }) => {
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto pt-16">
       <div className="flex min-w-max items-end gap-2 rounded-3xl bg-soft p-4">
         {ports.map((port) => {
           const rxValue = port.stats?.rxBytes ?? 0;
@@ -51,7 +51,7 @@ export const PortBandwidthChart = ({ ports }: { ports: SwitchPort[] }) => {
                   )}
                 </div>
 
-                <div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden w-48 -translate-x-1/2 -translate-y-[calc(100%+0.15rem)] group-hover:block">
+                <div className="pointer-events-none absolute left-1/2 top-0 z-30 hidden w-48 -translate-x-1/2 -translate-y-[calc(100%+0.35rem)] group-hover:block">
                   <div className="rounded-2xl border border-border bg-canvas px-3 py-2 text-xs text-muted shadow-xl">
                     <p className="font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
                     <p className="mt-1">RX: {formatBytes(rxValue)}</p>
