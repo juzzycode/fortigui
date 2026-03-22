@@ -49,7 +49,14 @@ export const SwitchDetailPage = () => {
   }, [device]);
 
   if (device === undefined) return <LoadingState label="Loading switch detail..." />;
-  if (device === null) return <ErrorState title="Switch not found" description="The requested device ID does not exist in the live switch inventory." />;
+  if (device === null) {
+    return (
+      <ErrorState
+        title="Switch not found"
+        description="The requested device ID does not exist in the live switch inventory."
+      />
+    );
+  }
 
   const runAction = async (action: string, payload?: Record<string, string | boolean>) => {
     const result = await api.runSwitchAction(device.id, action, payload);
@@ -106,8 +113,32 @@ export const SwitchDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Switch Detail" title={device.hostname} description={`${device.model}${device.managementIp ? ` at ${device.managementIp}` : ''}. Inventory and port state come from the FortiGate switch controller API, and operator actions now flow through the backend action log with role checks and audit history.`} actions={<><ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}><RotateCw className="mr-2 h-4 w-4" />Reboot</ActionButton><ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}><Lightbulb className="mr-2 h-4 w-4" />Blink LED</ActionButton><ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}><Save className="mr-2 h-4 w-4" />Sync Config</ActionButton></>} />
-      {message ? <div className="rounded-2xl border border-accent/25 bg-accent-muted px-4 py-3 text-sm font-medium text-accent">{message}</div> : null}
+      <PageHeader
+        eyebrow="Switch Detail"
+        title={device.hostname}
+        description={`${device.model}${device.managementIp ? ` at ${device.managementIp}` : ''}. Inventory and port state come from the FortiGate switch controller API, and operator actions now flow through the backend action log with role checks and audit history.`}
+        actions={
+          <>
+            <ActionButton onClick={() => runAction('reboot')} disabled={!canOperate}>
+              <RotateCw className="mr-2 h-4 w-4" />
+              Reboot
+            </ActionButton>
+            <ActionButton onClick={() => runAction('blink-led')} disabled={!canOperate}>
+              <Lightbulb className="mr-2 h-4 w-4" />
+              Blink LED
+            </ActionButton>
+            <ActionButton onClick={() => runAction('sync-config')} disabled={!canOperate}>
+              <Save className="mr-2 h-4 w-4" />
+              Sync Config
+            </ActionButton>
+          </>
+        }
+      />
+      {message ? (
+        <div className="rounded-2xl border border-accent/25 bg-accent-muted px-4 py-3 text-sm font-medium text-accent">
+          {message}
+        </div>
+      ) : null}
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Summary">
           <div className="grid gap-4 md:grid-cols-2">
@@ -119,14 +150,21 @@ export const SwitchDetailPage = () => {
             <SummaryItem label="Last Seen" value={formatRelativeTime(device.lastSeen)} />
           </div>
           <div className="mt-4 rounded-2xl bg-soft p-4">
-            <div className="mb-2 flex items-center justify-between text-sm"><span className="text-muted">PoE consumption</span><span className="font-semibold text-text">{Math.round(poeUsedPercent)}%</span></div>
-            <div className="h-3 rounded-full bg-slate-200/10"><div className="h-3 rounded-full bg-accent" style={{ width: `${Math.min(poeUsedPercent, 100)}%` }} /></div>
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="text-muted">PoE consumption</span>
+              <span className="font-semibold text-text">{Math.round(poeUsedPercent)}%</span>
+            </div>
+            <div className="h-3 rounded-full bg-slate-200/10">
+              <div className="h-3 rounded-full bg-accent" style={{ width: `${Math.min(poeUsedPercent, 100)}%` }} />
+            </div>
           </div>
         </Panel>
         <Panel title="Config Summary">
           <div className="space-y-3">
             {device.configSummary.map((item) => (
-              <div key={item} className="rounded-2xl bg-soft px-4 py-3 text-sm text-text">{item}</div>
+              <div key={item} className="rounded-2xl bg-soft px-4 py-3 text-sm text-text">
+                {item}
+              </div>
             ))}
           </div>
         </Panel>
@@ -143,10 +181,18 @@ export const SwitchDetailPage = () => {
             {device.ports.slice(0, 8).map((port) => (
               <div key={port.id} className="rounded-2xl bg-soft px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div><p className="font-medium text-text">{formatPortLabel(port.portNumber)}</p><p className="text-xs text-muted">{port.description}</p></div>
-                  <StatusBadge value={port.status === 'up' ? 'healthy' : port.status === 'warning' ? 'warning' : 'inactive'} />
+                  <div>
+                    <p className="font-medium text-text">{formatPortLabel(port.portNumber)}</p>
+                    <p className="text-xs text-muted">{port.description}</p>
+                  </div>
+                  <StatusBadge
+                    value={port.status === 'up' ? 'healthy' : port.status === 'warning' ? 'warning' : 'inactive'}
+                  />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted"><span>{port.vlan}</span><span>{formatWatts(port.poeWatts)}{port.poeState ? ` • ${port.poeState}` : ' PoE'}</span></div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                  <span>{port.vlan}</span>
+                  <span>{formatWatts(port.poeWatts)}{port.poeState ? ` | ${port.poeState}` : ' PoE'}</span>
+                </div>
                 <div className="mt-2 flex items-center justify-between text-xs text-muted">
                   <span>RX {formatBytes(port.stats?.rxBytes ?? 0)}</span>
                   <span>TX {formatBytes(port.stats?.txBytes ?? 0)}</span>
@@ -161,7 +207,11 @@ export const SwitchDetailPage = () => {
               <div key={port.id} className="rounded-2xl bg-soft px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-text">{formatPortLabel(port.portNumber)}</p>
-                  {port.tags?.length ? <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">{port.tags.join(' / ')}</span> : null}
+                  {port.tags?.length ? (
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">
+                      {port.tags.join(' / ')}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-xs text-muted">VLAN: {port.vlan}</p>
                 <p className="mt-1 text-xs text-muted">Neighbor: {port.neighbor ?? 'Endpoint / no LLDP data'}</p>
@@ -174,7 +224,10 @@ export const SwitchDetailPage = () => {
             {events.map((event) => (
               <div key={event.id} className="rounded-2xl border border-border bg-soft p-4">
                 <p className="text-sm font-semibold text-text">{event.message}</p>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted"><span>{event.actor}</span><span>{formatRelativeTime(event.timestamp)}</span></div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                  <span>{event.actor}</span>
+                  <span>{formatRelativeTime(event.timestamp)}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -183,7 +236,7 @@ export const SwitchDetailPage = () => {
       <SideDrawer
         open={Boolean(selectedPort)}
         title={selectedPort ? `Edit ${formatPortLabel(selectedPort.portNumber)}` : ''}
-        subtitle="Description is stored in EdgeOps. VLAN, administrative status, and PoE state are pushed to FortiGate through the managed-switch API."
+        subtitle="Description is stored in EdgeOps. VLAN, port status, and PoE are synced through the managed-switch API."
         onClose={() => setSelectedPort(null)}
       >
         {selectedPort ? (
@@ -210,39 +263,46 @@ export const SwitchDetailPage = () => {
             </Field>
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-text">Administrative Status</p>
-                <p className="mt-1 text-sm text-muted">Push an enable or disable state to the FortiGate managed-switch configuration.</p>
+                <p className="text-sm font-medium text-text">Port status</p>
+                <p className="mt-1 text-sm text-muted">Enabled or disabled.</p>
               </div>
-              <input
+              <Toggle
                 checked={portForm.enabled}
-                className="h-5 w-5 rounded border-border bg-soft text-accent focus:ring-accent"
-                onChange={(event) => setPortForm((current) => ({ ...current, enabled: event.target.checked }))}
-                type="checkbox"
+                label={portForm.enabled ? 'Enabled' : 'Disabled'}
+                onChange={(checked) => setPortForm((current) => ({ ...current, enabled: checked }))}
               />
             </label>
-            {selectedPort.tags?.includes('PoE') ? (
+            {selectedPort.tags?.some((tag) => tag.startsWith('PoE')) ? (
               <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-text">PoE</p>
-                  <p className="mt-1 text-sm text-muted">Toggle port PoE power delivery on or off from the FortiGate controller.</p>
+                  <p className="mt-1 text-sm text-muted">Enabled or disabled.</p>
                 </div>
-                <input
+                <Toggle
                   checked={portForm.poeEnabled}
-                  className="h-5 w-5 rounded border-border bg-soft text-accent focus:ring-accent"
-                  onChange={(event) => setPortForm((current) => ({ ...current, poeEnabled: event.target.checked }))}
-                  type="checkbox"
+                  label={portForm.poeEnabled ? 'Enabled' : 'Disabled'}
+                  onChange={(checked) => setPortForm((current) => ({ ...current, poeEnabled: checked }))}
                 />
               </label>
             ) : null}
             <div className="rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
-              VLAN options are loaded from the FortiGate site inventory. Description remains EdgeOps-local, while VLAN, administrative status, and PoE writes are pushed to FortiGate and then read back for verification.
+              VLAN options are loaded from the FortiGate site inventory. Description remains EdgeOps-local, while VLAN, port status, and PoE writes are pushed to FortiGate and then read back for verification.
             </div>
             <div className="flex flex-wrap gap-3">
-              <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-soft px-4 py-3 text-sm font-medium text-text transition hover:border-accent/35 disabled:cursor-not-allowed disabled:opacity-70" disabled={resettingPort || savingPort} onClick={handleResetPort} type="button">
+              <button
+                className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-soft px-4 py-3 text-sm font-medium text-text transition hover:border-accent/35 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={resettingPort || savingPort}
+                onClick={handleResetPort}
+                type="button"
+              >
                 <Undo2 className="h-4 w-4" />
                 {resettingPort ? 'Resetting...' : 'Reset'}
               </button>
-              <button className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70" disabled={savingPort || resettingPort} type="submit">
+              <button
+                className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={savingPort || resettingPort}
+                type="submit"
+              >
                 <Save className="h-4 w-4" />
                 {savingPort ? 'Saving...' : 'Save Port'}
               </button>
@@ -262,6 +322,42 @@ const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
 );
 
 const formatPortLabel = (value: string) => (value.toLowerCase().startsWith('port') ? value : `Port ${value}`);
+
+const Toggle = ({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) => (
+  <button
+    aria-checked={checked}
+    className="focus-ring inline-flex items-center gap-3 rounded-full border border-border bg-canvas px-3 py-2 text-sm font-medium text-text transition hover:border-accent/35"
+    onClick={() => onChange(!checked)}
+    role="switch"
+    type="button"
+  >
+    <span
+      className={
+        checked
+          ? 'relative inline-flex h-7 w-12 items-center rounded-full bg-accent/85 transition'
+          : 'relative inline-flex h-7 w-12 items-center rounded-full bg-slate-500/35 transition'
+      }
+    >
+      <span
+        className={
+          checked
+            ? 'inline-block h-5 w-5 translate-x-6 rounded-full bg-white shadow transition'
+            : 'inline-block h-5 w-5 translate-x-1 rounded-full bg-white shadow transition'
+        }
+      />
+    </span>
+    <span className="min-w-16 text-right">{label}</span>
+  </button>
+);
+
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   <label className="block">
     <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">{label}</span>
