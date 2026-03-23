@@ -209,10 +209,10 @@ export const api = {
     ).then((payload) => payload.fortiGates),
   getFortiGateById: async (id: string) =>
     jsonRequest<{ fortiGate: FortiGateDevice }>(`/api/fortigates/${encodeURIComponent(id)}`).then((payload) => payload.fortiGate),
-  scanFortiGateHost: async (id: string, ip: string) =>
+  scanFortiGateHost: async (id: string, ip: string, options?: { deep?: boolean }) =>
     jsonRequest<{ scan: HostScanResult }>(`/api/fortigates/${encodeURIComponent(id)}/scan-host`, {
       method: 'POST',
-      body: JSON.stringify({ ip }),
+      body: JSON.stringify({ ip, deep: Boolean(options?.deep) }),
     }).then((payload) => payload.scan),
   getAps: async (siteId?: string | 'all') =>
     jsonRequest<{ accessPoints: AccessPoint[] }>(

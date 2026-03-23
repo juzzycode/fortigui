@@ -27,6 +27,7 @@ export const FortiGateDetailPage = () => {
   const [scanResult, setScanResult] = useState<HostScanResult | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [deepScanEnabled, setDeepScanEnabled] = useState(false);
 
   useEffect(() => {
     api.getFortiGateById(id).then(setDevice).catch(() => setDevice(null));
@@ -45,6 +46,7 @@ export const FortiGateDetailPage = () => {
     setSelectedLease(null);
     setScanResult(null);
     setScanError('');
+    setDeepScanEnabled(false);
   }, [id]);
 
   const interfaceSummary = useMemo(() => {
@@ -114,7 +116,7 @@ export const FortiGateDetailPage = () => {
     setScanLoading(true);
     setScanError('');
     try {
-      const result = await api.scanFortiGateHost(device.id, selectedLease.ip);
+      const result = await api.scanFortiGateHost(device.id, selectedLease.ip, { deep: deepScanEnabled });
       setScanResult(result);
       if (result.status === 'failed' && result.error) {
         setScanError(result.error);
@@ -434,6 +436,21 @@ export const FortiGateDetailPage = () => {
             <DrawerItem label="Interface" value={selectedLease.interface} />
             <DrawerItem label="Status" value={selectedLease.status} />
             <DrawerItem label="Expires" value={selectedLease.expiresAt ? formatRelativeTime(selectedLease.expiresAt) : 'Unknown'} />
+            <label className="flex items-center justify-between gap-4 rounded-2xl bg-soft px-4 py-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted">Deep Scan</p>
+                <p className="mt-1 text-sm text-text">Fingerprint services, scan all ports, and capture richer banners.</p>
+              </div>
+              <button
+                className={`focus-ring relative inline-flex h-7 w-12 items-center rounded-full transition ${deepScanEnabled ? 'bg-accent' : 'bg-slate-600/70'}`}
+                onClick={() => setDeepScanEnabled((current) => !current)}
+                type="button"
+              >
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-white transition ${deepScanEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </label>
 
             {scanError ? (
               <div className="rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{scanError}</div>

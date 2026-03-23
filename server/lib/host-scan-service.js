@@ -24,23 +24,28 @@ const parseOpenPorts = (output) =>
     .filter((entry) => Number.isFinite(entry.port));
 
 const parseHostState = (output) => {
-  const upMatch = String(output || '').match(/Host is ([^.]+)/i);
-  if (upMatch) return upMatch[1].trim();
+  const normalized = String(output || '');
+  if (/Host is up/i.test(normalized)) return 'up';
+  if (/Host is down/i.test(normalized)) return 'down';
   if (/0 hosts up/i.test(String(output || ''))) return 'down';
   return 'unknown';
 };
 
 export const createHostScanService = () => ({
-  async scanTarget(target) {
+  async scanTarget(target, options = {}) {
     if (!isIP(String(target || ''))) {
       throw new Error('A valid IP address is required for scanning.');
     }
 
     try {
+      const deep = Boolean(options.deep);
+      const args = deep
+        ? ['-Pn', '-n', '-A', '-T4', '-p-', '--version-all', String(target)]
+        : ['-Pn', '-n', '-sV', '--top-ports', '100', String(target)];
       const { stdout, stderr } = await execFileAsync(
         'nmap',
-        ['-Pn', '-n', '-sV', '--top-ports', '100', String(target)],
-        { timeout: 45_000, windowsHide: true },
+        args,
+        { timeout: deep ? 180_000 : 45_000, windowsHide: true },
       );
       const rawOutput = [stdout, stderr].filter(Boolean).join('\n').trim();
       const openPorts = parseOpenPorts(rawOutput);
@@ -52,8 +57,8 @@ export const createHostScanService = () => ({
         status: 'success',
         hostState,
         summary: openPorts.length
-          ? `${openPorts.length} open port${openPorts.length === 1 ? '' : 's'} detected`
-          : 'No open ports detected in the scanned top 100 ports',
+          ? `${openPorts.length} open port${openPorts.length === 1 ? '' : 's'} detected${deep ? ' during deep scan' : ''}`
+          : `No open ports detected in the scanned ${deep ? 'full port range' : 'top 100 ports'}`,
         openPorts,
         rawOutput,
         error: null,

@@ -71,7 +71,9 @@ export const createFortiGatesRouter = ({ siteStore, fortiGateClient, hostScanSer
         return;
       }
 
-      const scan = await hostScanService.scanTarget(targetIp);
+      const scan = await hostScanService.scanTarget(targetIp, {
+        deep: Boolean(request.body?.deep),
+      });
       response.status(scan.status === 'success' ? 200 : 502).json({ scan });
       return;
     }
