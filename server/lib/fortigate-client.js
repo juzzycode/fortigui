@@ -1141,16 +1141,24 @@ const toIsoFromEpochSeconds = (value) => {
   return new Date(numeric * 1000).toISOString();
 };
 
-const mapFortiGateDhcpLease = (siteId, item) => ({
-  id: `${buildFortiGateId(siteId)}--lease--${String(item?.ip || item?.address || item?.mac || 'unknown')}`,
-  interface: extractStatusField(item, ['interface', 'interface-name', 'interface_name']) || 'unknown',
-  ip: extractStatusField(item, ['ip', 'address']) || 'Unavailable',
-  mac: extractStatusField(item, ['mac', 'mac-address', 'mac_address']) || 'Unavailable',
-  hostname:
-    extractStatusField(item, ['hostname', 'host-name', 'client-hostname', 'client_hostname']) || 'Unknown client',
-  status: extractStatusField(item, ['status', 'state']) || 'leased',
-  expiresAt: toIsoFromEpochSeconds(item?.expires || item?.expire || item?.lease_expire),
-});
+const mapFortiGateDhcpLease = (siteId, item, resolvedVendor = null) => {
+  const rawHostname = extractStatusField(item, ['hostname', 'host-name', 'client-hostname', 'client_hostname']) || '';
+  const derivedHostname = isPlaceholderIdentity(rawHostname)
+    ? resolvedVendor
+      ? `Unknown Client - (${resolvedVendor})`
+      : 'Unknown client'
+    : rawHostname;
+
+  return {
+    id: `${buildFortiGateId(siteId)}--lease--${String(item?.ip || item?.address || item?.mac || 'unknown')}`,
+    interface: extractStatusField(item, ['interface', 'interface-name', 'interface_name']) || 'unknown',
+    ip: extractStatusField(item, ['ip', 'address']) || 'Unavailable',
+    mac: extractStatusField(item, ['mac', 'mac-address', 'mac_address']) || 'Unavailable',
+    hostname: derivedHostname,
+    status: extractStatusField(item, ['status', 'state']) || 'leased',
+    expiresAt: toIsoFromEpochSeconds(item?.expires || item?.expire || item?.lease_expire),
+  };
+};
 
 const mapFortiGateHaStatus = (haConfigPayload, haChecksPayload, statusPayload) => {
   const haConfig = Array.isArray(haConfigPayload?.results) ? haConfigPayload.results[0] ?? {} : haConfigPayload?.results ?? {};
@@ -1414,8 +1422,23 @@ export const createFortiGateClient = ({ siteStore, vendorLookupService }) => ({
       .map((item) => mapFortiGatePolicy(site.id, item))
       .sort((left, right) => left.sequence - right.sequence)
       .slice(0, 50);
-    const dhcpLeases = (Array.isArray(dhcpPayload.results) ? dhcpPayload.results : [])
-      .map((item) => mapFortiGateDhcpLease(site.id, item))
+    const dhcpLeases = await Promise.all(
+      (Array.isArray(dhcpPayload.results) ? dhcpPayload.results : []).map(async (item) => {
+        const shouldLookupVendor =
+          vendorLookupService &&
+          isPlaceholderIdentity(extractStatusField(item, ['hostname', 'host-name', 'client-hostname', 'client_hostname'])) &&
+          String(extractStatusField(item, ['mac', 'mac-address', 'mac_address']) || '').trim();
+
+        const resolvedVendor = shouldLookupVendor
+          ? await vendorLookupService
+              .lookupByMac(String(extractStatusField(item, ['mac', 'mac-address', 'mac_address']) || ''))
+              .catch(() => null)
+          : null;
+
+        return mapFortiGateDhcpLease(site.id, item, resolvedVendor);
+      }),
+    );
+    const sortedDhcpLeases = dhcpLeases
       .sort((left, right) => left.interface.localeCompare(right.interface) || left.ip.localeCompare(right.ip))
       .slice(0, 100);
     const vpnStatusMap = new Map(
@@ -1441,7 +1464,7 @@ export const createFortiGateClient = ({ siteStore, vendorLookupService }) => ({
       {
         vpns,
         policies,
-        dhcpLeases,
+        dhcpLeases: sortedDhcpLeases,
         haStatus,
       },
     );
