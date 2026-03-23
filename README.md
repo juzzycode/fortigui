@@ -86,6 +86,8 @@ npm run build
 - `/aps`
 - `/aps/:id`
 - `/clients`
+- `/fortigates`
+- `/fortigates/:id`
 - `/alerts`
 - `/profiles`
 - `/firmware`
@@ -125,6 +127,7 @@ npm run build
 - Device operations now flow through `/api/switches/:id/actions` and `/api/aps/:id/actions`, with backend validation, role checks, and persistent audit history exposed through `/api/events`.
 - Live derived profile catalogs now flow through `/api/profiles`, grouping observed switch, AP, SSID, VLAN, and port policy data by the selected site scope.
 - Live firmware compliance now flows through `/api/firmware`, organizing switch and AP versions into rollout-ready groups.
+- FortiGate inventory and detail now flow through `/api/fortigates`, including interfaces, VPNs, policies, DHCP leases, HA status, and host-scan actions from DHCP lease drawers.
 - Authentication now flows through `/api/auth/*`, with session cookies protecting live inventory routes and `/api/users` handling operator management.
 - Each live site can now archive a full FortiGate configuration once per day, expose downloadable daily snapshots, and render diffs between archived days directly from the site detail view.
   This archive is controlled per site and can be enabled or disabled from the site create/edit workflow.
@@ -138,6 +141,9 @@ npm run build
 
 - The UI supports light and dark themes.
 - The UI now has a real login page, session-backed logout, and three enforced roles: `super_admin`, `site_admin`, and `read_only`.
+- The FortiGate section includes live interfaces, VPNs, firewall policies, DHCP leases, HA status, and host scan drawers from lease IPs.
+- Unknown clients and DHCP leases can now be enriched with cached MAC vendor lookups using free vendor APIs.
+- DHCP lease drawers can run cached basic or deep `nmap` scans through the backend when `nmap` is installed on the server host.
 - Site onboarding, FortiGate API key guidance, role behavior, scope enforcement, ping expectations, and config archive restrictions are documented in `docs/SITES.md`.
 - Site detail now includes a config archive section with daily FortiGate backups, downloadable config files, and diffs between snapshot days.
 - Switch and AP action buttons now go through authenticated backend action endpoints, and every request is written into the shared event history feed.

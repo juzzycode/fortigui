@@ -9,6 +9,7 @@ This guide covers:
 - what each EdgeOps Cloud user role can do
 - site scoping rules
 - ping and config archive requirements
+- FortiGate detail behavior for DHCP scans and unknown client enrichment
 
 ## Adding A Site
 
@@ -206,6 +207,54 @@ Current behavior:
 Current limitation:
 
 - several actions are still marked `manual_required` after validation because the direct FortiGate REST mutation path for that specific command has not been finalized yet
+
+## FortiGate Detail Features
+
+The FortiGate section is now a first-class management area in the UI.
+
+Current behavior:
+
+- FortiGate inventory is available at `/fortigates`
+- FortiGate detail is available at `/fortigates/:id`
+- detail pages include interfaces, VPNs, firewall policies, DHCP leases, and HA summary
+- long FortiGate detail sections support local filtering and pagination
+
+## DHCP Lease Host Scans
+
+From a FortiGate detail page, DHCP lease IPs are clickable.
+
+Current behavior:
+
+- clicking a lease opens a drawer
+- cached scan results are shown automatically if that host was scanned before
+- scans are cached per site and prefer MAC identity when available
+- basic scans use a lighter `nmap` profile
+- deep scans use a two-stage workflow:
+  - fast full-port discovery
+  - targeted scripted follow-up on the discovered open ports
+
+Important requirements:
+
+- `nmap` must be installed on the backend host
+- scans run from the EdgeOps backend host, not from the browser
+- if `nmap` is missing or the scan fails, the drawer shows the captured failure output
+
+## Unknown Client MAC Vendor Enrichment
+
+EdgeOps now enriches unknown clients and unknown DHCP lease hostnames with cached MAC vendor lookups.
+
+Current behavior:
+
+- only unknown or placeholder identities trigger a lookup
+- results are cached locally in the site database
+- the same MAC does not get looked up repeatedly once cached
+- primary provider is `macvendorlookup.com`
+- fallback provider is `maclookup.app`
+- fallback requests are rate-limited to respect the free service profile
+
+Typical result:
+
+- `Unknown Client` can become `Unknown Client - (Ring)`
 
 ## Related Docs
 

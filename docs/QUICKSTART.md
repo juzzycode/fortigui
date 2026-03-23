@@ -7,6 +7,7 @@ EdgeOps Cloud is a frontend-first network management UI for:
 - Switches
 - Wireless access points
 - Sites
+- FortiGates
 - Clients
 - Alerts
 - Profiles
@@ -101,6 +102,46 @@ How it works:
 - the site detail page shows the archive, daily download links, and diffs between successful days
 
 You can also force a fresh pull for today from the site detail page with `Refresh Today's Snapshot`.
+
+## FortiGate Detail And Host Scans
+
+With a live site connected, you can open `/fortigates` and drill into a FortiGate detail page.
+
+Implemented there now:
+
+- interfaces
+- VPNs
+- firewall policies
+- DHCP leases
+- HA status
+
+DHCP lease behavior:
+
+- lease IPs are clickable
+- clicking a lease opens a drawer
+- the drawer can show cached host scan results if that host was scanned before
+- `Scan Host` runs a basic `nmap` scan
+- `Deep Scan` runs a two-stage scan:
+  - full TCP port discovery
+  - targeted scripted follow-up against only the discovered open ports
+
+Important:
+
+- `nmap` must be installed on the backend host
+- scan results are cached in the site database
+- cached scans prefer MAC address identity when the lease MAC is available
+
+## Unknown Client Vendor Lookups
+
+Unknown clients and unknown DHCP lease hostnames can now be enriched from cached MAC vendor lookups.
+
+Behavior:
+
+- only unknown or placeholder identities are looked up
+- results are cached locally so the same MAC is not looked up repeatedly
+- primary provider is `macvendorlookup.com`
+- fallback provider is `maclookup.app`
+- fallback requests are rate-limited in-process
 
 ## Build
 

@@ -4,6 +4,21 @@
 
 EdgeOps Cloud is designed as an original, modern network operations UI focused on clarity, fast visibility, and clean device workflows for distributed environments.
 
+## FortiGate Management
+
+Implemented capabilities:
+
+- FortiGate inventory page
+- FortiGate detail page
+- Live interface inventory
+- VPN summary
+- Firewall policy summary with policy detail drawer
+- DHCP lease inventory
+- HA status summary
+- DHCP lease IP drawer with cached host scan results
+- Basic and deep `nmap` scan actions from lease drawers
+- Per-tile filters and pagination for dense FortiGate detail sections
+
 ## Dashboard
 
 The dashboard includes:
@@ -93,6 +108,8 @@ Implemented capabilities:
 - Client detail drawer
 - Usage and status visibility
 - Historical connection placeholder
+- MAC vendor enrichment for unknown clients
+- Cached vendor lookups so repeated clients do not trigger repeated external vendor requests
 
 ## Alerts
 
@@ -169,6 +186,8 @@ Shared platform features already in place:
 - Persisted site metric and alert history
 - Shared event/audit history feed for device actions
 - Server-side site scope enforcement for assigned users
+- Cached host scans for DHCP lease targets, keyed by site and MAC when available
+- Cached MAC vendor lookup database for unknown clients and unknown DHCP lease hostnames
 - Dark and light theme support
 - Responsive desktop-first layout
 - Mobile navigation support
