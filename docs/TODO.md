@@ -77,6 +77,8 @@
 - Add scheduled background jobs for more history collectors beyond site summary.
 - Add secret-manager integration for production credential storage.
 - Add backup and restore flows for the EdgeOps application databases.
+- Add a real global command palette workflow beyond the current shell state.
+- Deepen real backend API integration where the UI still relies on inferred or monitor-only controller data.
 
 ## UX Polish
 
@@ -84,6 +86,7 @@
 - Add in-app diagnostics for backend connectivity and FortiGate reachability.
 - Add CSV or JSON export for more inventory and history tables.
 - Add mobile-friendly pinned detail panels for hover-heavy views.
+- Add richer config diff presentation beyond raw unified diff output.
 
 ## USERS
 
