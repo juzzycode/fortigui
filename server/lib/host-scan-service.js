@@ -94,7 +94,7 @@ export const createHostScanService = () => ({
           hostState = hostStateFromDiscovery;
         }
       } else {
-        rawOutput = await runNmap(['-Pn', '-n', '-sV', '--top-ports', '100', String(target)], 45_000);
+        rawOutput = await runNmap(['-Pn', '-n', '--top-ports', '100', String(target)], 45_000);
         openPorts = parseOpenPorts(rawOutput);
         hostState = parseHostState(rawOutput);
       }
