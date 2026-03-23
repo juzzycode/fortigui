@@ -5,11 +5,20 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const runNmap = async (args, timeout) => {
-  const { stdout, stderr } = await execFileAsync('nmap', args, {
-    timeout,
-    windowsHide: true,
-  });
-  return [stdout, stderr].filter(Boolean).join('\n').trim();
+  try {
+    const { stdout, stderr } = await execFileAsync('nmap', args, {
+      timeout,
+      windowsHide: true,
+    });
+    return [stdout, stderr].filter(Boolean).join('\n').trim();
+  } catch (error) {
+    const stdout = typeof error?.stdout === 'string' ? error.stdout : '';
+    const stderr = typeof error?.stderr === 'string' ? error.stderr : '';
+    const rawOutput = [stdout, stderr].filter(Boolean).join('\n').trim();
+    const wrappedError = error instanceof Error ? error : new Error('nmap scan failed');
+    wrappedError.rawOutput = rawOutput;
+    throw wrappedError;
+  }
 };
 
 const parseOpenPorts = (output) =>
@@ -104,14 +113,18 @@ export const createHostScanService = () => ({
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'nmap scan failed';
+      const rawOutput =
+        error && typeof error === 'object' && 'rawOutput' in error && typeof error.rawOutput === 'string'
+          ? error.rawOutput
+          : '';
       return {
         target: String(target),
         scannedAt: new Date().toISOString(),
         status: 'failed',
         hostState: 'unknown',
-        summary: 'Scan failed',
+        summary: rawOutput ? 'Scan failed with diagnostic output' : 'Scan failed',
         openPorts: [],
-        rawOutput: '',
+        rawOutput,
         error: /ENOENT/i.test(message) ? 'nmap is not installed or not available on the server PATH.' : message,
       };
     }
