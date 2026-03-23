@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
-import { Cable, Globe2, ShieldCheck, ShieldEllipsis, Waypoints } from 'lucide-react';
+import { Cable, Globe2, ScanSearch, ShieldCheck, ShieldEllipsis, Waypoints } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Panel } from '@/components/common/Panel';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { SideDrawer } from '@/components/drawers/SideDrawer';
 import { formatRelativeTime } from '@/lib/utils';
 import { api } from '@/services/api';
-import type { FortiGateDevice } from '@/types/models';
+import type { FortiGateDevice, FortiGateDhcpLease, FortiGatePolicy, HostScanResult } from '@/types/models';
 
 export const FortiGateDetailPage = () => {
   const { id = '' } = useParams();
@@ -21,6 +22,11 @@ export const FortiGateDetailPage = () => {
   const [vpnQuery, setVpnQuery] = useState('');
   const [policyQuery, setPolicyQuery] = useState('');
   const [leaseQuery, setLeaseQuery] = useState('');
+  const [selectedPolicy, setSelectedPolicy] = useState<FortiGatePolicy | null>(null);
+  const [selectedLease, setSelectedLease] = useState<FortiGateDhcpLease | null>(null);
+  const [scanResult, setScanResult] = useState<HostScanResult | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState('');
 
   useEffect(() => {
     api.getFortiGateById(id).then(setDevice).catch(() => setDevice(null));
@@ -35,6 +41,10 @@ export const FortiGateDetailPage = () => {
     setVpnQuery('');
     setPolicyQuery('');
     setLeaseQuery('');
+    setSelectedPolicy(null);
+    setSelectedLease(null);
+    setScanResult(null);
+    setScanError('');
   }, [id]);
 
   const interfaceSummary = useMemo(() => {
@@ -98,6 +108,24 @@ export const FortiGateDetailPage = () => {
   if (device === null) {
     return <ErrorState title="FortiGate not found" description="The requested FortiGate could not be found for any configured site." />;
   }
+
+  const runLeaseScan = async () => {
+    if (!selectedLease?.ip) return;
+    setScanLoading(true);
+    setScanError('');
+    try {
+      const result = await api.scanFortiGateHost(device.id, selectedLease.ip);
+      setScanResult(result);
+      if (result.status === 'failed' && result.error) {
+        setScanError(result.error);
+      }
+    } catch (error) {
+      setScanResult(null);
+      setScanError(error instanceof Error ? error.message : 'Unable to scan the selected host');
+    } finally {
+      setScanLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -275,7 +303,7 @@ export const FortiGateDetailPage = () => {
           <div className="space-y-3">
             {filteredPolicies.length ? (
               pagedPolicies.items.map((policy) => (
-                <div key={policy.id} className="rounded-2xl border border-border bg-soft p-4">
+                <button key={policy.id} className="w-full rounded-2xl border border-border bg-soft p-4 text-left transition hover:border-accent/30" onClick={() => setSelectedPolicy(policy)} type="button">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-text">{policy.name}</p>
@@ -296,7 +324,7 @@ export const FortiGateDetailPage = () => {
                     ))}
                     {policy.services.length > 6 ? <span className="text-xs text-muted">+{policy.services.length - 6} more</span> : null}
                   </div>
-                </div>
+                </button>
               ))
             ) : (
               <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">
@@ -324,7 +352,16 @@ export const FortiGateDetailPage = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-semibold text-text">{lease.hostname}</p>
-                      <p className="mt-1 text-xs text-muted">{lease.ip} | {lease.mac}</p>
+                      <p className="mt-1 text-xs text-muted">
+                        <button className="font-medium text-accent hover:underline" onClick={() => {
+                          setSelectedLease(lease);
+                          setScanResult(null);
+                          setScanError('');
+                        }} type="button">
+                          {lease.ip}
+                        </button>{' '}
+                        | {lease.mac}
+                      </p>
                     </div>
                     <StatusBadge value={lease.status === 'leased' || lease.status === 'active' ? 'healthy' : 'warning'} />
                   </div>
@@ -348,6 +385,89 @@ export const FortiGateDetailPage = () => {
           </div>
         </Panel>
       </div>
+
+      <SideDrawer open={Boolean(selectedPolicy)} title={selectedPolicy?.name ?? ''} subtitle="Firewall policy detail" onClose={() => setSelectedPolicy(null)}>
+        {selectedPolicy ? (
+          <div className="space-y-3">
+            <DrawerItem label="Policy ID" value={String(selectedPolicy.sequence)} />
+            <DrawerItem label="Action" value={selectedPolicy.action} />
+            <DrawerItem label="Status" value={selectedPolicy.status} />
+            <DrawerItem label="Source Interface" value={selectedPolicy.srcInterface} />
+            <DrawerItem label="Destination Interface" value={selectedPolicy.dstInterface} />
+            <DrawerItem label="Source Addresses" value={selectedPolicy.srcAddresses.join(', ') || 'All'} />
+            <DrawerItem label="Destination Addresses" value={selectedPolicy.dstAddresses.join(', ') || 'All'} />
+            <DrawerItem label="Protocol / Services" value={selectedPolicy.services.join(', ') || 'ALL'} />
+            <DrawerItem label="Schedule" value={selectedPolicy.schedule} />
+            <DrawerItem label="NAT" value={selectedPolicy.nat ? 'Enabled' : 'Disabled'} />
+            <DrawerItem label="Log Traffic" value={selectedPolicy.logTraffic} />
+            <DrawerItem label="Comments" value={selectedPolicy.comments || 'No comments'} />
+          </div>
+        ) : null}
+      </SideDrawer>
+
+      <SideDrawer
+        open={Boolean(selectedLease)}
+        title={selectedLease?.hostname || selectedLease?.ip || ''}
+        subtitle={selectedLease ? `DHCP lease on ${selectedLease.interface}` : ''}
+        onClose={() => {
+          setSelectedLease(null);
+          setScanResult(null);
+          setScanError('');
+          setScanLoading(false);
+        }}
+        actions={(
+          <button
+            className="focus-ring inline-flex items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={scanLoading || !selectedLease?.ip}
+            onClick={() => void runLeaseScan()}
+            type="button"
+          >
+            <ScanSearch className="h-4 w-4" />
+            {scanLoading ? 'Scanning...' : 'Scan Host'}
+          </button>
+        )}
+      >
+        {selectedLease ? (
+          <div className="space-y-3">
+            <DrawerItem label="IP" value={selectedLease.ip} />
+            <DrawerItem label="MAC" value={selectedLease.mac} />
+            <DrawerItem label="Interface" value={selectedLease.interface} />
+            <DrawerItem label="Status" value={selectedLease.status} />
+            <DrawerItem label="Expires" value={selectedLease.expiresAt ? formatRelativeTime(selectedLease.expiresAt) : 'Unknown'} />
+
+            {scanError ? (
+              <div className="rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{scanError}</div>
+            ) : null}
+
+            {scanResult ? (
+              <div className="space-y-3">
+                <DrawerItem label="Scan Time" value={formatRelativeTime(scanResult.scannedAt)} />
+                <DrawerItem label="Host State" value={scanResult.hostState} />
+                <DrawerItem label="Summary" value={scanResult.summary} />
+                {scanResult.openPorts.length ? (
+                  <div className="rounded-2xl bg-soft p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted">Open Ports</p>
+                    <div className="mt-3 space-y-2">
+                      {scanResult.openPorts.map((port) => (
+                        <div key={`${port.port}-${port.protocol}`} className="rounded-2xl border border-border bg-canvas px-4 py-3">
+                          <p className="text-sm font-medium text-text">{port.port}/{port.protocol} - {port.service}</p>
+                          <p className="mt-1 text-xs text-muted">{port.state}{port.version ? ` | ${port.version}` : ''}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="rounded-2xl bg-soft p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted">Raw nmap Output</p>
+                  <pre className="mt-3 overflow-auto whitespace-pre-wrap break-words text-xs text-text">{scanResult.rawOutput || 'No raw output returned.'}</pre>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">Run a scan to inspect the leased host and display service results here.</div>
+            )}
+          </div>
+        ) : null}
+      </SideDrawer>
     </div>
   );
 };
@@ -391,6 +511,13 @@ const SignalRow = ({ label, value }: { label: string; value: string }) => (
       <span className="text-sm text-muted">{label}</span>
     </div>
     <span className="text-right text-sm font-medium text-text">{value}</span>
+  </div>
+);
+
+const DrawerItem = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-2xl bg-soft px-4 py-3">
+    <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
+    <p className="mt-2 text-sm font-medium text-text">{value}</p>
   </div>
 );
 

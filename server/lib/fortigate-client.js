@@ -1099,12 +1099,19 @@ const mapFortiGatePolicy = (siteId, item) => ({
   dstInterface:
     (Array.isArray(item?.dstintf) ? item.dstintf.map((entry) => entry?.name || entry?.q_origin_key).filter(Boolean).join(', ') : '') ||
     'any',
+  srcAddresses: Array.isArray(item?.srcaddr)
+    ? item.srcaddr.map((entry) => entry?.name || entry?.q_origin_key).filter(Boolean)
+    : [],
+  dstAddresses: Array.isArray(item?.dstaddr)
+    ? item.dstaddr.map((entry) => entry?.name || entry?.q_origin_key).filter(Boolean)
+    : [],
   services: Array.isArray(item?.service)
     ? item.service.map((entry) => entry?.name || entry?.q_origin_key).filter(Boolean)
     : ['ALL'],
   schedule: extractStatusField(item, ['schedule']) || 'always',
   nat: String(item?.nat || '').toLowerCase() === 'enable',
   logTraffic: extractStatusField(item, ['logtraffic']) || 'disable',
+  comments: extractStatusField(item, ['comments', 'comment']) || undefined,
   status: String(item?.status || '').toLowerCase() === 'disable' ? 'disabled' : 'enabled',
 });
 

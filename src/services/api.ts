@@ -1,4 +1,4 @@
-import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, DeviceProfile, EventLog, FirmwareStatus, FortiGateDevice, ManagedUser, PortProfile, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, SwitchVlanOption, TopologyGraph, VLANProfile } from '@/types/models';
+import type { AccessPoint, Alert, AuthSession, BandwidthPoint, Client, DeviceActionRecord, DeviceProfile, EventLog, FirmwareStatus, FortiGateDevice, HostScanResult, ManagedUser, PortProfile, RogueAccessPoint, Site, SiteConfigDiff, SiteConfigSnapshot, SiteHistoryPoint, SwitchDevice, SwitchVlanOption, TopologyGraph, VLANProfile } from '@/types/models';
 
 const delay = async <T,>(data: T, timeout = 280) => new Promise<T>((resolve) => setTimeout(() => resolve(data), timeout));
 const authRequiredEventName = 'edgeops:auth-required';
@@ -209,6 +209,11 @@ export const api = {
     ).then((payload) => payload.fortiGates),
   getFortiGateById: async (id: string) =>
     jsonRequest<{ fortiGate: FortiGateDevice }>(`/api/fortigates/${encodeURIComponent(id)}`).then((payload) => payload.fortiGate),
+  scanFortiGateHost: async (id: string, ip: string) =>
+    jsonRequest<{ scan: HostScanResult }>(`/api/fortigates/${encodeURIComponent(id)}/scan-host`, {
+      method: 'POST',
+      body: JSON.stringify({ ip }),
+    }).then((payload) => payload.scan),
   getAps: async (siteId?: string | 'all') =>
     jsonRequest<{ accessPoints: AccessPoint[] }>(
       siteId && siteId !== 'all' ? `/api/aps?siteId=${encodeURIComponent(siteId)}` : '/api/aps',

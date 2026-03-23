@@ -111,10 +111,13 @@ export interface FortiGatePolicy {
   action: string;
   srcInterface: string;
   dstInterface: string;
+  srcAddresses: string[];
+  dstAddresses: string[];
   services: string[];
   schedule: string;
   nat: boolean;
   logTraffic: string;
+  comments?: string;
   status: 'enabled' | 'disabled';
 }
 
@@ -126,6 +129,25 @@ export interface FortiGateDhcpLease {
   hostname: string;
   status: string;
   expiresAt?: string | null;
+}
+
+export interface HostScanPort {
+  port: number;
+  protocol: string;
+  state: string;
+  service: string;
+  version: string;
+}
+
+export interface HostScanResult {
+  target: string;
+  scannedAt: string;
+  status: 'success' | 'failed';
+  hostState: string;
+  summary: string;
+  openPorts: HostScanPort[];
+  rawOutput: string;
+  error?: string | null;
 }
 
 export interface FortiGateHaStatus {

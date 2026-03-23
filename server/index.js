@@ -11,6 +11,7 @@ import { createGatewayConfigService } from './lib/gateway-config-service.js';
 import { createGatewayRepository } from './lib/gateway-repository.js';
 import { createHistoryService } from './lib/history-service.js';
 import { createHistoryStore } from './lib/history-store.js';
+import { createHostScanService } from './lib/host-scan-service.js';
 import { createInventoryService } from './lib/inventory-service.js';
 import { createSiteConfigArchiveService } from './lib/site-config-archive-service.js';
 import { createAlertService } from './lib/alert-service.js';
@@ -63,6 +64,7 @@ const start = async () => {
   const inventoryService = createInventoryService({ siteStore, fortiGateClient });
   const alertService = createAlertService({ siteStore, fortiGateClient });
   const historyService = createHistoryService({ siteStore, fortiGateClient, alertService, historyStore });
+  const hostScanService = createHostScanService();
   const topologyService = createTopologyService({ siteStore, fortiGateClient });
   const deviceActionService = createDeviceActionService({ siteStore, fortiGateClient, historyStore });
   const gatewayConfigService = createGatewayConfigService({ repository });
@@ -243,7 +245,7 @@ const start = async () => {
   app.use('/api/events', createEventsRouter({ historyStore }));
   app.use('/api/profiles', createProfilesRouter({ inventoryService }));
   app.use('/api/firmware', createFirmwareRouter({ inventoryService }));
-  app.use('/api/fortigates', createFortiGatesRouter({ siteStore, fortiGateClient }));
+  app.use('/api/fortigates', createFortiGatesRouter({ siteStore, fortiGateClient, hostScanService }));
   app.use('/api/topology', createTopologyRouter({ topologyService }));
   app.use('/api/switches', createSwitchesRouter({ siteStore, fortiGateClient, deviceActionService }));
   app.use('/api/aps', createApsRouter({ siteStore, fortiGateClient, deviceActionService }));
