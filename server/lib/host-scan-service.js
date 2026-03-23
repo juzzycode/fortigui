@@ -62,7 +62,7 @@ export const createHostScanService = () => ({
         if (discoveryPorts.length) {
           const portList = discoveryPorts.map((entry) => entry.port).join(',');
           const serviceOutput = await runNmap(
-            ['-Pn', '-n', '-T4', '-sV', '-sC', '-p', portList, String(target)],
+            ['-Pn', '-n', '-T4', '-sT', '-sC', '--script-timeout', '5s', '--max-retries', '1', '-p', portList, String(target)],
             180_000,
           );
           rawOutput = [
