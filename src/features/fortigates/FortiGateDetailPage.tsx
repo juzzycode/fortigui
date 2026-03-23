@@ -17,6 +17,10 @@ export const FortiGateDetailPage = () => {
   const [vpnPage, setVpnPage] = useState(1);
   const [policyPage, setPolicyPage] = useState(1);
   const [leasePage, setLeasePage] = useState(1);
+  const [interfaceQuery, setInterfaceQuery] = useState('');
+  const [vpnQuery, setVpnQuery] = useState('');
+  const [policyQuery, setPolicyQuery] = useState('');
+  const [leaseQuery, setLeaseQuery] = useState('');
 
   useEffect(() => {
     api.getFortiGateById(id).then(setDevice).catch(() => setDevice(null));
@@ -27,6 +31,10 @@ export const FortiGateDetailPage = () => {
     setVpnPage(1);
     setPolicyPage(1);
     setLeasePage(1);
+    setInterfaceQuery('');
+    setVpnQuery('');
+    setPolicyQuery('');
+    setLeaseQuery('');
   }, [id]);
 
   const interfaceSummary = useMemo(() => {
@@ -38,10 +46,53 @@ export const FortiGateDetailPage = () => {
     };
   }, [device]);
 
-  const pagedInterfaces = useMemo(() => paginateItems(device?.interfaces ?? [], interfacePage), [device?.interfaces, interfacePage]);
-  const pagedVpns = useMemo(() => paginateItems(device?.vpns ?? [], vpnPage), [device?.vpns, vpnPage]);
-  const pagedPolicies = useMemo(() => paginateItems(device?.policies ?? [], policyPage), [device?.policies, policyPage]);
-  const pagedLeases = useMemo(() => paginateItems(device?.dhcpLeases ?? [], leasePage), [device?.dhcpLeases, leasePage]);
+  const filteredInterfaces = useMemo(
+    () =>
+      (device?.interfaces ?? []).filter((item) =>
+        matchesQuery(interfaceQuery, [item.name, item.alias, item.role, item.type, item.ip, item.allowAccess.join(' ')]),
+      ),
+    [device?.interfaces, interfaceQuery],
+  );
+  const filteredVpns = useMemo(
+    () =>
+      (device?.vpns ?? []).filter((item) =>
+        matchesQuery(vpnQuery, [item.name, item.type, item.interface, item.remoteGateway, item.status]),
+      ),
+    [device?.vpns, vpnQuery],
+  );
+  const filteredPolicies = useMemo(
+    () =>
+      (device?.policies ?? []).filter((item) =>
+        matchesQuery(policyQuery, [
+          item.name,
+          item.action,
+          item.srcInterface,
+          item.dstInterface,
+          item.schedule,
+          item.status,
+          item.services.join(' '),
+          String(item.sequence),
+        ]),
+      ),
+    [device?.policies, policyQuery],
+  );
+  const filteredLeases = useMemo(
+    () =>
+      (device?.dhcpLeases ?? []).filter((item) =>
+        matchesQuery(leaseQuery, [item.hostname, item.ip, item.mac, item.interface, item.status]),
+      ),
+    [device?.dhcpLeases, leaseQuery],
+  );
+
+  const pagedInterfaces = useMemo(() => paginateItems(filteredInterfaces, interfacePage), [filteredInterfaces, interfacePage]);
+  const pagedVpns = useMemo(() => paginateItems(filteredVpns, vpnPage), [filteredVpns, vpnPage]);
+  const pagedPolicies = useMemo(() => paginateItems(filteredPolicies, policyPage), [filteredPolicies, policyPage]);
+  const pagedLeases = useMemo(() => paginateItems(filteredLeases, leasePage), [filteredLeases, leasePage]);
+
+  useEffect(() => setInterfacePage(1), [interfaceQuery]);
+  useEffect(() => setVpnPage(1), [vpnQuery]);
+  useEffect(() => setPolicyPage(1), [policyQuery]);
+  useEffect(() => setLeasePage(1), [leaseQuery]);
 
   if (device === undefined) return <LoadingState label="Loading FortiGate detail..." />;
   if (device === null) {
@@ -92,9 +143,13 @@ export const FortiGateDetailPage = () => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title="Interfaces" subtitle="Live FortiGate interface inventory from system/interface.">
+        <Panel
+          title="Interfaces"
+          subtitle="Live FortiGate interface inventory from system/interface."
+          action={<PanelFilter value={interfaceQuery} onChange={setInterfaceQuery} placeholder="Filter interfaces" />}
+        >
           <div className="space-y-3">
-            {device.interfaces.length ? (
+            {filteredInterfaces.length ? (
               pagedInterfaces.items.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -123,12 +178,14 @@ export const FortiGateDetailPage = () => {
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No interface inventory was returned by the FortiGate API for this site.</div>
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">
+                {interfaceQuery ? 'No interfaces match the current filter.' : 'No interface inventory was returned by the FortiGate API for this site.'}
+              </div>
             )}
             <PaginationControls
               currentPage={interfacePage}
               totalPages={pagedInterfaces.totalPages}
-              totalItems={device.interfaces.length}
+              totalItems={filteredInterfaces.length}
               onPageChange={setInterfacePage}
             />
           </div>
@@ -171,9 +228,13 @@ export const FortiGateDetailPage = () => {
           </div>
         </Panel>
 
-        <Panel title="VPNs" subtitle="IPsec Phase 1 tunnels with live status when the monitor endpoint is available.">
+        <Panel
+          title="VPNs"
+          subtitle="IPsec Phase 1 tunnels with live status when the monitor endpoint is available."
+          action={<PanelFilter value={vpnQuery} onChange={setVpnQuery} placeholder="Filter VPNs" />}
+        >
           <div className="space-y-3">
-            {device.vpns.length ? (
+            {filteredVpns.length ? (
               pagedVpns.items.map((vpn) => (
                 <div key={vpn.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -191,12 +252,14 @@ export const FortiGateDetailPage = () => {
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No VPN tunnels were returned by the FortiGate API for this site.</div>
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">
+                {vpnQuery ? 'No VPNs match the current filter.' : 'No VPN tunnels were returned by the FortiGate API for this site.'}
+              </div>
             )}
             <PaginationControls
               currentPage={vpnPage}
               totalPages={pagedVpns.totalPages}
-              totalItems={device.vpns.length}
+              totalItems={filteredVpns.length}
               onPageChange={setVpnPage}
             />
           </div>
@@ -204,9 +267,13 @@ export const FortiGateDetailPage = () => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Firewall Policies" subtitle="Top policies from the FortiGate policy table, trimmed for quick review.">
+        <Panel
+          title="Firewall Policies"
+          subtitle="Top policies from the FortiGate policy table, trimmed for quick review."
+          action={<PanelFilter value={policyQuery} onChange={setPolicyQuery} placeholder="Filter policies" />}
+        >
           <div className="space-y-3">
-            {device.policies.length ? (
+            {filteredPolicies.length ? (
               pagedPolicies.items.map((policy) => (
                 <div key={policy.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -232,20 +299,26 @@ export const FortiGateDetailPage = () => {
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No firewall policies were returned by the FortiGate API for this site.</div>
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">
+                {policyQuery ? 'No policies match the current filter.' : 'No firewall policies were returned by the FortiGate API for this site.'}
+              </div>
             )}
             <PaginationControls
               currentPage={policyPage}
               totalPages={pagedPolicies.totalPages}
-              totalItems={device.policies.length}
+              totalItems={filteredPolicies.length}
               onPageChange={setPolicyPage}
             />
           </div>
         </Panel>
 
-        <Panel title="DHCP Leases" subtitle="Current leases from the FortiGate DHCP monitor endpoint when available.">
+        <Panel
+          title="DHCP Leases"
+          subtitle="Current leases from the FortiGate DHCP monitor endpoint when available."
+          action={<PanelFilter value={leaseQuery} onChange={setLeaseQuery} placeholder="Filter leases" />}
+        >
           <div className="space-y-3">
-            {device.dhcpLeases.length ? (
+            {filteredLeases.length ? (
               pagedLeases.items.map((lease) => (
                 <div key={lease.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -262,12 +335,14 @@ export const FortiGateDetailPage = () => {
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No DHCP lease data was returned by the FortiGate API for this site.</div>
+              <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">
+                {leaseQuery ? 'No DHCP leases match the current filter.' : 'No DHCP lease data was returned by the FortiGate API for this site.'}
+              </div>
             )}
             <PaginationControls
               currentPage={leasePage}
               totalPages={pagedLeases.totalPages}
-              totalItems={device.dhcpLeases.length}
+              totalItems={filteredLeases.length}
               onPageChange={setLeasePage}
             />
           </div>
@@ -321,6 +396,12 @@ const SignalRow = ({ label, value }: { label: string; value: string }) => (
 
 const pageSize = 10;
 
+const matchesQuery = (query: string, values: Array<string | null | undefined>) => {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  return values.some((value) => String(value || '').toLowerCase().includes(needle));
+};
+
 const paginateItems = <T,>(items: T[], page: number) => {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const safePage = Math.min(Math.max(page, 1), totalPages);
@@ -371,3 +452,20 @@ const PaginationControls = ({
     </div>
   );
 };
+
+const PanelFilter = ({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) => (
+  <input
+    value={value}
+    onChange={(event) => onChange(event.target.value)}
+    className="focus-ring w-40 rounded-xl border border-border bg-soft px-3 py-2 text-xs text-text placeholder:text-muted"
+    placeholder={placeholder}
+  />
+);
