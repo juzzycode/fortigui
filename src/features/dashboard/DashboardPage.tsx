@@ -1,5 +1,6 @@
 import { Activity, AlertTriangle, Building2, Network, RadioTower, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Panel } from '@/components/common/Panel';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatCard } from '@/components/common/StatCard';
@@ -10,12 +11,14 @@ import { TopologyCanvas } from '@/components/data-display/TopologyCanvas';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
+import { cn } from '@/lib/utils';
 import { formatNumber, formatRelativeTime, formatWatts } from '@/lib/utils';
-import type { TopologyGraph } from '@/types/models';
+import type { DeviceStatus, TopologyGraph } from '@/types/models';
 
 export const DashboardPage = () => {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.getDashboard>> | null>(null);
   const [topology, setTopology] = useState<TopologyGraph | null>(null);
+  const [selectedHealth, setSelectedHealth] = useState<DeviceStatus | null>(null);
   const { selectedSiteId } = useAppStore();
 
   useEffect(() => {
@@ -34,6 +37,33 @@ export const DashboardPage = () => {
       value: pool.filter((device) => device.status === status).length,
     }));
   }, [data]);
+
+  const siteNameById = useMemo(() => Object.fromEntries((data?.sites ?? []).map((site) => [site.id, site.name])), [data]);
+
+  const filteredHealthDevices = useMemo(() => {
+    if (!data || !selectedHealth) return [];
+
+    return [
+      ...data.switches.map((device) => ({
+        id: device.id,
+        name: device.hostname,
+        status: device.status,
+        type: 'switch' as const,
+        subtitle: `${device.model} - ${siteNameById[device.siteId] ?? device.siteId}`,
+        href: `/switches/${device.id}`,
+      })),
+      ...data.accessPoints.map((device) => ({
+        id: device.id,
+        name: device.name,
+        status: device.status,
+        type: 'ap' as const,
+        subtitle: `${device.model} - ${siteNameById[device.siteId] ?? device.siteId}`,
+        href: `/aps/${device.id}`,
+      })),
+    ]
+      .filter((device) => device.status === selectedHealth)
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [data, selectedHealth, siteNameById]);
 
   if (!data || !topology) return <LoadingState label="Loading dashboard telemetry..." />;
 
@@ -72,17 +102,79 @@ export const DashboardPage = () => {
         </Panel>
 
         <Panel title="Device Health Summary" subtitle="Combined switch and AP health status.">
-          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
             <div className="grid gap-3">
               {healthBreakdown.map((item) => (
-                <div key={item.name} className="flex items-center justify-between rounded-2xl bg-soft px-4 py-3">
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => setSelectedHealth((current) => (current === item.name ? null : (item.name as DeviceStatus)))}
+                  className={cn(
+                    'flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition',
+                    selectedHealth === item.name
+                      ? 'border-accent bg-accent/10'
+                      : 'border-transparent bg-soft hover:border-border',
+                  )}
+                >
                   <div className="flex items-center gap-3">
                     <StatusBadge value={item.name} />
                     <span className="text-sm font-medium capitalize text-text">{item.name}</span>
                   </div>
-                  <span className="text-lg font-semibold text-text">{item.value}</span>
-                </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-text">{item.value}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-muted">
+                      {selectedHealth === item.name ? 'Clear filter' : 'View devices'}
+                    </p>
+                  </div>
+                </button>
               ))}
+
+              <div className="rounded-2xl border border-border bg-soft p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-text capitalize">{selectedHealth ? `${selectedHealth} devices` : 'Devices in focus'}</p>
+                    <p className="text-xs text-muted">
+                      {selectedHealth
+                        ? 'Linked switch and AP results for the selected health state.'
+                        : 'Choose a health state above to filter devices and jump directly into remediation.'}
+                    </p>
+                  </div>
+                  {selectedHealth ? (
+                    <button className="text-xs font-semibold text-accent hover:underline" onClick={() => setSelectedHealth(null)} type="button">
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {selectedHealth ? (
+                    filteredHealthDevices.length ? (
+                      filteredHealthDevices.slice(0, 8).map((device) => (
+                        <Link
+                          key={device.id}
+                          className="flex items-center justify-between rounded-2xl border border-transparent bg-canvas px-3 py-3 transition hover:border-border hover:bg-surface"
+                          to={device.href}
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-text">{device.name}</p>
+                            <p className="text-xs text-muted">{device.subtitle}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs uppercase tracking-wide text-muted">{device.type}</p>
+                            <StatusBadge value={device.status} />
+                          </div>
+                        </Link>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted">No devices match this health state in the current scope.</p>
+                    )
+                  ) : (
+                    <p className="text-sm text-muted">Healthy is useful for audits, while warning, critical, and offline help you triage issues fast.</p>
+                  )}
+                  {selectedHealth && filteredHealthDevices.length > 8 ? (
+                    <p className="pt-1 text-xs text-muted">{filteredHealthDevices.length - 8} more devices match this filter in the current scope.</p>
+                  ) : null}
+                </div>
+              </div>
             </div>
             <HealthDonut data={healthBreakdown} />
           </div>
