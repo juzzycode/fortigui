@@ -13,9 +13,20 @@ import type { FortiGateDevice } from '@/types/models';
 export const FortiGateDetailPage = () => {
   const { id = '' } = useParams();
   const [device, setDevice] = useState<FortiGateDevice | null>();
+  const [interfacePage, setInterfacePage] = useState(1);
+  const [vpnPage, setVpnPage] = useState(1);
+  const [policyPage, setPolicyPage] = useState(1);
+  const [leasePage, setLeasePage] = useState(1);
 
   useEffect(() => {
     api.getFortiGateById(id).then(setDevice).catch(() => setDevice(null));
+  }, [id]);
+
+  useEffect(() => {
+    setInterfacePage(1);
+    setVpnPage(1);
+    setPolicyPage(1);
+    setLeasePage(1);
   }, [id]);
 
   const interfaceSummary = useMemo(() => {
@@ -26,6 +37,11 @@ export const FortiGateDetailPage = () => {
       allowAccess: Array.from(new Set(interfaces.flatMap((item) => item.allowAccess))).sort(),
     };
   }, [device]);
+
+  const pagedInterfaces = useMemo(() => paginateItems(device?.interfaces ?? [], interfacePage), [device?.interfaces, interfacePage]);
+  const pagedVpns = useMemo(() => paginateItems(device?.vpns ?? [], vpnPage), [device?.vpns, vpnPage]);
+  const pagedPolicies = useMemo(() => paginateItems(device?.policies ?? [], policyPage), [device?.policies, policyPage]);
+  const pagedLeases = useMemo(() => paginateItems(device?.dhcpLeases ?? [], leasePage), [device?.dhcpLeases, leasePage]);
 
   if (device === undefined) return <LoadingState label="Loading FortiGate detail..." />;
   if (device === null) {
@@ -79,7 +95,7 @@ export const FortiGateDetailPage = () => {
         <Panel title="Interfaces" subtitle="Live FortiGate interface inventory from system/interface.">
           <div className="space-y-3">
             {device.interfaces.length ? (
-              device.interfaces.map((item) => (
+              pagedInterfaces.items.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -109,6 +125,12 @@ export const FortiGateDetailPage = () => {
             ) : (
               <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No interface inventory was returned by the FortiGate API for this site.</div>
             )}
+            <PaginationControls
+              currentPage={interfacePage}
+              totalPages={pagedInterfaces.totalPages}
+              totalItems={device.interfaces.length}
+              onPageChange={setInterfacePage}
+            />
           </div>
         </Panel>
 
@@ -152,7 +174,7 @@ export const FortiGateDetailPage = () => {
         <Panel title="VPNs" subtitle="IPsec Phase 1 tunnels with live status when the monitor endpoint is available.">
           <div className="space-y-3">
             {device.vpns.length ? (
-              device.vpns.map((vpn) => (
+              pagedVpns.items.map((vpn) => (
                 <div key={vpn.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -171,6 +193,12 @@ export const FortiGateDetailPage = () => {
             ) : (
               <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No VPN tunnels were returned by the FortiGate API for this site.</div>
             )}
+            <PaginationControls
+              currentPage={vpnPage}
+              totalPages={pagedVpns.totalPages}
+              totalItems={device.vpns.length}
+              onPageChange={setVpnPage}
+            />
           </div>
         </Panel>
       </div>
@@ -179,7 +207,7 @@ export const FortiGateDetailPage = () => {
         <Panel title="Firewall Policies" subtitle="Top policies from the FortiGate policy table, trimmed for quick review.">
           <div className="space-y-3">
             {device.policies.length ? (
-              device.policies.map((policy) => (
+              pagedPolicies.items.map((policy) => (
                 <div key={policy.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -206,13 +234,19 @@ export const FortiGateDetailPage = () => {
             ) : (
               <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No firewall policies were returned by the FortiGate API for this site.</div>
             )}
+            <PaginationControls
+              currentPage={policyPage}
+              totalPages={pagedPolicies.totalPages}
+              totalItems={device.policies.length}
+              onPageChange={setPolicyPage}
+            />
           </div>
         </Panel>
 
         <Panel title="DHCP Leases" subtitle="Current leases from the FortiGate DHCP monitor endpoint when available.">
           <div className="space-y-3">
             {device.dhcpLeases.length ? (
-              device.dhcpLeases.map((lease) => (
+              pagedLeases.items.map((lease) => (
                 <div key={lease.id} className="rounded-2xl border border-border bg-soft p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -230,6 +264,12 @@ export const FortiGateDetailPage = () => {
             ) : (
               <div className="rounded-2xl bg-soft px-4 py-6 text-sm text-muted">No DHCP lease data was returned by the FortiGate API for this site.</div>
             )}
+            <PaginationControls
+              currentPage={leasePage}
+              totalPages={pagedLeases.totalPages}
+              totalItems={device.dhcpLeases.length}
+              onPageChange={setLeasePage}
+            />
           </div>
         </Panel>
       </div>
@@ -278,3 +318,56 @@ const SignalRow = ({ label, value }: { label: string; value: string }) => (
     <span className="text-right text-sm font-medium text-text">{value}</span>
   </div>
 );
+
+const pageSize = 10;
+
+const paginateItems = <T,>(items: T[], page: number) => {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * pageSize;
+
+  return {
+    items: items.slice(start, start + pageSize),
+    totalPages,
+  };
+};
+
+const PaginationControls = ({
+  currentPage,
+  totalPages,
+  totalItems,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}) => {
+  if (totalItems <= pageSize) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-canvas px-4 py-3">
+      <p className="text-xs text-muted">
+        Showing page {currentPage} of {totalPages} for {totalItems} items
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          className="focus-ring rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-text disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          type="button"
+        >
+          Previous
+        </button>
+        <button
+          className="focus-ring rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-text disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          type="button"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
