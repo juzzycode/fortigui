@@ -39,6 +39,8 @@ const fortiGateBaseUrl = (value) => {
   return target.authority ? `https://${target.authority}` : '';
 };
 
+const resolveSiteVdom = (site) => String(site?.fortigate_vdom || '').trim() || 'root';
+
 const requestFortiGate = (url, apiKey, options = {}) =>
   new Promise((resolve, reject) => {
     let settled = false;
@@ -660,7 +662,7 @@ const getCachedSwitchStatus = async (site, apiKey) => {
   }
 
   const payload = await requestJson(
-    `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/monitor/switch-controller/managed-switch/status?vdom=root`,
+    `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/monitor/switch-controller/managed-switch/status?vdom=${encodeURIComponent(resolveSiteVdom(site))}`,
     apiKey,
   );
 
@@ -1034,9 +1036,19 @@ const normalizeSite = (site, overrides = {}) => ({
   apCount: 0,
   fortigateName: site.fortigate_name || site.name,
   fortigateIp: site.fortigate_ip || '',
+  fortigateVdom: site.fortigate_vdom || 'root',
   wanIp: null,
   source: 'live',
-  configArchiveEnabled: site.config_archive_enabled === undefined ? true : Boolean(site.config_archive_enabled),
+  configArchiveEnabled:
+    site.config_backups_to_keep === 0
+      ? false
+      : site.config_archive_enabled === undefined
+        ? true
+        : Boolean(site.config_archive_enabled),
+  configBackupsToKeep:
+    site.config_backups_to_keep === undefined || site.config_backups_to_keep === null
+      ? null
+      : Number(site.config_backups_to_keep),
   fortigateVersion: null,
   fortigateSerial: null,
   addressObjectCount: 0,
@@ -1616,7 +1628,7 @@ export const createFortiGateClient = ({ siteStore, vendorLookupService }) => ({
       };
     }
 
-    const vdom = encodeURIComponent(extractStatusField(item, ['vdom']) || 'root');
+    const vdom = encodeURIComponent(extractStatusField(item, ['vdom']) || resolveSiteVdom(site));
     const patchBody = {
       ...port,
       'port-name': normalizedPortNumber,

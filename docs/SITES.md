@@ -26,6 +26,7 @@ Typical FortiGate fields:
 - FortiGate name
 - FortiGate IP or `host:port`
 - FortiGate API key
+- VDOM
 
 Optional fields:
 
@@ -37,6 +38,8 @@ Current behavior:
 - EdgeOps generates a shorthand id like `site-den`
 - the shorthand id stays stable after site creation
 - non-default FortiGate HTTPS ports are supported, for example `66.11.224.253:8443`
+- the site `VDOM` defaults to `root` and is used for VDOM-aware FortiGate calls such as managed-switch status and config backup requests
+- `Config backups to keep` controls both whether daily config archive is enabled and how many archived snapshots are retained
 - optional admin username/password are stored for future SSH or CLI-assisted collection, but are not used by the current REST polling flow
 
 ## Creating A FortiGate API Key
@@ -170,7 +173,7 @@ Ping behavior today:
 
 ## Config Archive Restrictions
 
-Per-site config archive is optional and controlled by the `Enable daily FortiGate config archive` setting.
+Per-site config archive is optional and controlled by the `Config backups to keep` setting.
 
 Current behavior:
 
@@ -179,9 +182,12 @@ Current behavior:
 - manual refresh from the site detail page
 - download of successful snapshots only
 - diffs only between successful snapshots
+- retention choices are `0`, `10`, `30`, `90`, or `Unlimited`
 
 Important restrictions:
 
+- `0` disables scheduled archive completely for that site
+- when a retention limit is set, older snapshots are pruned automatically
 - disabled sites do not participate in the daily archive scheduler
 - a site with insufficient FortiGate API permissions can show `403` for archive pulls even if normal monitoring works
 - no diff is available until there are at least two successful snapshot days

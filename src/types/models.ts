@@ -67,6 +67,7 @@ export interface Site {
   apCount: number;
   fortigateName?: string;
   fortigateIp?: string;
+  fortigateVdom?: string;
   wanIp?: string | null;
   fortigateVersion?: string | null;
   fortigateSerial?: string | null;
@@ -80,6 +81,7 @@ export interface Site {
   latencyCheckedAt?: string | null;
   latencyError?: string | null;
   configArchiveEnabled?: boolean;
+  configBackupsToKeep?: number | null;
   source?: 'live';
 }
 

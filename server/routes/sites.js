@@ -25,6 +25,7 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
             apCount: 0,
             fortigateName: site.fortigate_name || site.name,
             fortigateIp: site.fortigate_ip || '',
+            fortigateVdom: site.fortigate_vdom || 'root',
             fortigateVersion: null,
             fortigateSerial: null,
             addressObjectCount: 0,
@@ -36,6 +37,11 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
             latencyPacketLoss: null,
             latencyCheckedAt: null,
             latencyError: null,
+            configArchiveEnabled: site.config_backups_to_keep === 0 ? false : site.config_archive_enabled === undefined ? true : Boolean(site.config_archive_enabled),
+            configBackupsToKeep:
+              site.config_backups_to_keep === undefined || site.config_backups_to_keep === null
+                ? null
+                : Number(site.config_backups_to_keep),
             source: 'live',
           };
         }),
@@ -45,7 +51,7 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
   });
 
   router.post('/', requireSuperAdmin, async (request, response) => {
-    const { name, address, timezone, region, fortigateName, fortigateIp, fortigateApiKey, adminUsername, adminPassword, configArchiveEnabled } = request.body ?? {};
+    const { name, address, timezone, region, fortigateName, fortigateIp, fortigateApiKey, fortigateVdom, adminUsername, adminPassword, configBackupsToKeep } = request.body ?? {};
 
     if (!name || !address || !timezone || !region) {
       response.status(400).json({ error: 'name, address, timezone, and region are required' });
@@ -60,9 +66,10 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
       fortigateName,
       fortigateIp,
       fortigateApiKey,
+      fortigateVdom,
       adminUsername,
       adminPassword,
-      configArchiveEnabled,
+      configBackupsToKeep,
     });
 
     response.status(201).json({ site: await fortiGateClient.summarizeSite(site) });
@@ -200,7 +207,7 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
     if (!ensureSiteAccess(request, response, request.params.id)) {
       return;
     }
-    const { name, address, timezone, region, fortigateName, fortigateIp, fortigateApiKey, adminUsername, adminPassword, configArchiveEnabled } = request.body ?? {};
+    const { name, address, timezone, region, fortigateName, fortigateIp, fortigateApiKey, fortigateVdom, adminUsername, adminPassword, configBackupsToKeep } = request.body ?? {};
     const existing = await siteStore.getSiteById(request.params.id);
 
     if (!existing) {
@@ -221,10 +228,13 @@ export const createSitesRouter = ({ siteStore, fortiGateClient, siteConfigArchiv
       fortigateName,
       fortigateIp,
       fortigateApiKey,
+      fortigateVdom,
       adminUsername,
       adminPassword,
-      configArchiveEnabled,
+      configBackupsToKeep,
     });
+
+    await siteConfigArchiveService.enforceRetention(request.params.id);
 
     response.json({ site: await fortiGateClient.summarizeSite(site) });
   });

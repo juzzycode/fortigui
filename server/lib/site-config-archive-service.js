@@ -29,6 +29,8 @@ const fortiGateBaseUrl = (value) => {
   return target.authority ? `https://${target.authority}` : '';
 };
 
+const resolveSiteVdom = (site) => String(site?.fortigate_vdom || '').trim() || 'root';
+
 const requestText = (url, apiKey) =>
   new Promise((resolve, reject) => {
     let settled = false;
@@ -139,17 +141,37 @@ export const createSiteConfigArchiveService = ({ siteStore }) => {
       throw new Error('FortiGate IP or API key is missing for this site.');
     }
 
-    const requestUrl = `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/monitor/system/config/backup?scope=global`;
+    const requestUrl = `${fortiGateBaseUrl(site.fortigate_ip)}/api/v2/monitor/system/config/backup?scope=global&vdom=${encodeURIComponent(resolveSiteVdom(site))}`;
     return requestText(requestUrl, site.fortigate_api_key);
   };
 
   return {
+    async enforceRetention(siteId) {
+      const site = await siteStore.getSiteById(siteId);
+      if (!site) return;
+
+      const keepCount = site.config_backups_to_keep;
+      const snapshots = await siteStore.listSiteConfigSnapshots(siteId);
+
+      if (keepCount === null || keepCount === undefined) {
+        return;
+      }
+
+      if (keepCount <= 0) {
+        await Promise.all(snapshots.map((snapshot) => siteStore.deleteSiteConfigSnapshot(siteId, snapshot.id)));
+        return;
+      }
+
+      const snapshotsToDelete = snapshots.slice(keepCount);
+      await Promise.all(snapshotsToDelete.map((snapshot) => siteStore.deleteSiteConfigSnapshot(siteId, snapshot.id)));
+    },
+
     async ensureDailySnapshot(siteId, { force = false } = {}) {
       const site = await siteStore.getSiteById(siteId);
       if (!site) {
         throw new Error('Site is not eligible for config archiving');
       }
-      if (!site.config_archive_enabled) {
+      if (!site.config_archive_enabled || site.config_backups_to_keep === 0) {
         throw new Error('Config archive is disabled for this site');
       }
 
@@ -186,6 +208,7 @@ export const createSiteConfigArchiveService = ({ siteStore }) => {
           errorText: null,
         });
 
+        await this.enforceRetention(siteId);
         return serializeSnapshot(snapshot);
       } catch (error) {
         const snapshot = await siteStore.upsertSiteConfigSnapshot({
@@ -199,6 +222,7 @@ export const createSiteConfigArchiveService = ({ siteStore }) => {
           errorText: error instanceof Error ? error.message : 'Unable to archive FortiGate config',
         });
 
+        await this.enforceRetention(siteId);
         return serializeSnapshot(snapshot);
       }
     },

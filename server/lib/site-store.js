@@ -14,6 +14,19 @@ const baseShorthand = (name) => {
   return cleaned[0]?.slice(0, 3) || 'site';
 };
 
+const normalizeConfigBackupsToKeep = (value) => {
+  if (value === null || value === undefined || value === '' || value === 'unlimited') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return null;
+  }
+
+  return Math.trunc(numeric);
+};
+
 export const createSiteStore = ({ db }) => ({
   async init() {
     await db.exec(`
@@ -27,6 +40,7 @@ export const createSiteStore = ({ db }) => ({
         fortigate_name TEXT,
         fortigate_ip TEXT,
         fortigate_api_key TEXT,
+        fortigate_vdom TEXT,
         admin_username TEXT,
         admin_password TEXT,
         is_demo INTEGER NOT NULL DEFAULT 0,
@@ -45,12 +59,24 @@ export const createSiteStore = ({ db }) => ({
       ['latency_checked_at', 'ALTER TABLE sites ADD COLUMN latency_checked_at TEXT'],
       ['latency_error', 'ALTER TABLE sites ADD COLUMN latency_error TEXT'],
       ['config_archive_enabled', 'ALTER TABLE sites ADD COLUMN config_archive_enabled INTEGER NOT NULL DEFAULT 1'],
+      ['fortigate_vdom', `ALTER TABLE sites ADD COLUMN fortigate_vdom TEXT NOT NULL DEFAULT 'root'`],
+      ['config_backups_to_keep', 'ALTER TABLE sites ADD COLUMN config_backups_to_keep INTEGER'],
     ];
 
     for (const [columnName, sql] of migrations) {
       if (!columnNames.has(columnName)) {
         await db.exec(sql);
       }
+    }
+
+    if (!columnNames.has('config_backups_to_keep')) {
+      await db.run(`
+        UPDATE sites
+        SET config_backups_to_keep = CASE
+          WHEN config_archive_enabled = 0 THEN 0
+          ELSE NULL
+        END
+      `);
     }
 
     await db.exec(`
@@ -152,6 +178,7 @@ export const createSiteStore = ({ db }) => ({
   },
 
   async createSite(input) {
+    const configBackupsToKeep = normalizeConfigBackupsToKeep(input.configBackupsToKeep);
     const shorthandId = await this.nextShorthandId(input.name);
     const row = {
       id: makeId('site'),
@@ -163,9 +190,11 @@ export const createSiteStore = ({ db }) => ({
       fortigate_name: input.fortigateName ?? '',
       fortigate_ip: input.fortigateIp ?? '',
       fortigate_api_key: input.fortigateApiKey ?? '',
+      fortigate_vdom: String(input.fortigateVdom || '').trim() || 'root',
       admin_username: input.adminUsername ?? '',
       admin_password: input.adminPassword ?? '',
-      config_archive_enabled: input.configArchiveEnabled === false ? 0 : 1,
+      config_archive_enabled: configBackupsToKeep === 0 ? 0 : 1,
+      config_backups_to_keep: configBackupsToKeep,
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -174,9 +203,9 @@ export const createSiteStore = ({ db }) => ({
       `
         INSERT INTO sites (
           id, shorthand_id, name, address, timezone, region, fortigate_name, fortigate_ip,
-          fortigate_api_key, admin_username, admin_password, config_archive_enabled, is_demo, created_at, updated_at
+          fortigate_api_key, fortigate_vdom, admin_username, admin_password, config_archive_enabled, config_backups_to_keep, is_demo, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       `,
       row.id,
       row.shorthand_id,
@@ -187,9 +216,11 @@ export const createSiteStore = ({ db }) => ({
       row.fortigate_name,
       row.fortigate_ip,
       row.fortigate_api_key,
+      row.fortigate_vdom,
       row.admin_username,
       row.admin_password,
       row.config_archive_enabled,
+      row.config_backups_to_keep,
       row.created_at,
       row.updated_at,
     );
@@ -200,6 +231,10 @@ export const createSiteStore = ({ db }) => ({
   async updateSite(id, input) {
     const current = await this.getSiteById(id);
     if (!current) return null;
+    const configBackupsToKeep =
+      input.configBackupsToKeep !== undefined
+        ? normalizeConfigBackupsToKeep(input.configBackupsToKeep)
+        : current.config_backups_to_keep;
 
     const row = {
       ...current,
@@ -210,9 +245,11 @@ export const createSiteStore = ({ db }) => ({
       fortigate_name: input.fortigateName ?? current.fortigate_name,
       fortigate_ip: input.fortigateIp ?? current.fortigate_ip,
       fortigate_api_key: input.fortigateApiKey ?? current.fortigate_api_key,
+      fortigate_vdom: input.fortigateVdom !== undefined ? String(input.fortigateVdom || '').trim() || 'root' : current.fortigate_vdom,
       admin_username: input.adminUsername ?? current.admin_username,
       admin_password: input.adminPassword ?? current.admin_password,
-      config_archive_enabled: input.configArchiveEnabled !== undefined ? (input.configArchiveEnabled ? 1 : 0) : current.config_archive_enabled,
+      config_archive_enabled: configBackupsToKeep === 0 ? 0 : 1,
+      config_backups_to_keep: configBackupsToKeep,
       updated_at: nowIso(),
     };
 
@@ -220,7 +257,7 @@ export const createSiteStore = ({ db }) => ({
       `
         UPDATE sites
         SET name = ?, address = ?, timezone = ?, region = ?, fortigate_name = ?, fortigate_ip = ?,
-            fortigate_api_key = ?, admin_username = ?, admin_password = ?, config_archive_enabled = ?, updated_at = ?
+            fortigate_api_key = ?, fortigate_vdom = ?, admin_username = ?, admin_password = ?, config_archive_enabled = ?, config_backups_to_keep = ?, updated_at = ?
         WHERE id = ?
       `,
       row.name,
@@ -230,9 +267,11 @@ export const createSiteStore = ({ db }) => ({
       row.fortigate_name,
       row.fortigate_ip,
       row.fortigate_api_key,
+      row.fortigate_vdom,
       row.admin_username,
       row.admin_password,
       row.config_archive_enabled,
+      row.config_backups_to_keep,
       row.updated_at,
       id,
     );
@@ -292,6 +331,17 @@ export const createSiteStore = ({ db }) => ({
         siteId,
         snapshotId,
       )) ?? null
+    );
+  },
+
+  async deleteSiteConfigSnapshot(siteId, snapshotId) {
+    await db.run(
+      `
+        DELETE FROM site_config_snapshots
+        WHERE site_id = ? AND id = ?
+      `,
+      siteId,
+      snapshotId,
     );
   },
 

@@ -156,9 +156,19 @@ export const SiteDetailPage = () => {
           <div className="space-y-3">
             <DetailRow label="FortiGate Name" value={site.fortigateName || 'Not configured'} />
             <DetailRow label="FortiGate IP" value={site.fortigateIp || 'Not configured'} />
+            <DetailRow label="VDOM" value={site.fortigateVdom || 'root'} />
             <DetailRow label="WAN IP" value={site.wanIp || 'Unavailable'} />
             <DetailRow label="API Reachable" value={site.apiReachable ? 'Yes' : 'No'} />
-            <DetailRow label="Config Archive" value={site.configArchiveEnabled ? 'Enabled' : 'Disabled'} />
+            <DetailRow
+              label="Backups To Keep"
+              value={
+                site.configBackupsToKeep === 0
+                  ? 'Disabled'
+                  : site.configBackupsToKeep === null || site.configBackupsToKeep === undefined
+                    ? 'Unlimited'
+                    : String(site.configBackupsToKeep)
+              }
+            />
             <DetailRow label="Address Objects" value={String(site.addressObjectCount ?? 0)} />
           </div>
         </Panel>

@@ -19,9 +19,10 @@ interface SiteFormState {
   fortigateName: string;
   fortigateIp: string;
   fortigateApiKey: string;
+  fortigateVdom: string;
   adminUsername: string;
   adminPassword: string;
-  configArchiveEnabled: boolean;
+  configBackupsToKeep: '0' | '10' | '30' | '90' | 'unlimited';
 }
 
 const defaultForm: SiteFormState = {
@@ -32,9 +33,10 @@ const defaultForm: SiteFormState = {
   fortigateName: '',
   fortigateIp: '',
   fortigateApiKey: '',
+  fortigateVdom: 'root',
   adminUsername: '',
   adminPassword: '',
-  configArchiveEnabled: true,
+  configBackupsToKeep: '30',
 };
 
 export const SitesPage = () => {
@@ -70,17 +72,17 @@ export const SitesPage = () => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const handleToggle = (field: keyof SiteFormState, value: boolean) => {
-    setForm((current) => ({ ...current, [field]: value }));
-  };
-
   const handleCreateSite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
 
     try {
-      await api.createSite(form);
+      await api.createSite({
+        ...form,
+        fortigateVdom: form.fortigateVdom.trim() || 'root',
+        configBackupsToKeep: form.configBackupsToKeep === 'unlimited' ? null : Number(form.configBackupsToKeep),
+      });
       setForm(defaultForm);
       setShowWizard(false);
       await refreshSites();
@@ -101,9 +103,13 @@ export const SitesPage = () => {
       fortigateName: site.fortigateName || '',
       fortigateIp: site.fortigateIp || '',
       fortigateApiKey: '',
+      fortigateVdom: site.fortigateVdom || 'root',
       adminUsername: '',
       adminPassword: '',
-      configArchiveEnabled: site.configArchiveEnabled ?? true,
+      configBackupsToKeep:
+        site.configBackupsToKeep === null || site.configBackupsToKeep === undefined
+          ? 'unlimited'
+          : String(site.configBackupsToKeep) as SiteFormState['configBackupsToKeep'],
     });
   };
 
@@ -118,8 +124,10 @@ export const SitesPage = () => {
       await api.updateSite(editingSite.id, {
         ...form,
         fortigateApiKey: form.fortigateApiKey.trim() ? form.fortigateApiKey : undefined,
+        fortigateVdom: form.fortigateVdom.trim() || 'root',
         adminUsername: form.adminUsername.trim() ? form.adminUsername : undefined,
         adminPassword: form.adminPassword.trim() ? form.adminPassword : undefined,
+        configBackupsToKeep: form.configBackupsToKeep === 'unlimited' ? null : Number(form.configBackupsToKeep),
       });
       setEditingSite(null);
       setForm(defaultForm);
@@ -209,25 +217,26 @@ export const SitesPage = () => {
             <Field label="FortiGate API Key">
               <input className={inputClassName} onChange={(event) => handleChange('fortigateApiKey', event.target.value)} placeholder="Paste the FortiGate REST API key" type="password" value={form.fortigateApiKey} />
             </Field>
+            <Field label="VDOM">
+              <input className={inputClassName} onChange={(event) => handleChange('fortigateVdom', event.target.value)} placeholder="root" value={form.fortigateVdom} />
+            </Field>
             <Field label="Admin Username">
               <input className={inputClassName} onChange={(event) => handleChange('adminUsername', event.target.value)} placeholder="Optional local admin reference" value={form.adminUsername} />
             </Field>
             <Field label="Admin Password">
               <input className={inputClassName} onChange={(event) => handleChange('adminPassword', event.target.value)} placeholder="Optional local admin reference" type="password" value={form.adminPassword} />
             </Field>
-            <Field className="lg:col-span-2" label="Config Archive">
-              <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-text">Enable daily FortiGate config archive</p>
-                  <p className="mt-1 text-sm text-muted">When enabled, the backend archives one full config snapshot per day and exposes downloads plus diffs on the site detail page.</p>
-                </div>
-                <input
-                  checked={form.configArchiveEnabled}
-                  className="h-5 w-5 rounded border-border bg-soft text-accent focus:ring-accent"
-                  onChange={(event) => handleToggle('configArchiveEnabled', event.target.checked)}
-                  type="checkbox"
-                />
-              </label>
+            <Field className="lg:col-span-2" label="Config Backups To Keep">
+              <div className="rounded-2xl border border-border bg-soft px-4 py-3">
+                <select className={inputClassName} onChange={(event) => handleChange('configBackupsToKeep', event.target.value)} value={form.configBackupsToKeep}>
+                  <option value="0">0 - Disable completely</option>
+                  <option value="10">10</option>
+                  <option value="30">30</option>
+                  <option value="90">90</option>
+                  <option value="unlimited">Unlimited</option>
+                </select>
+                <p className="mt-2 text-sm text-muted">Controls daily FortiGate config backups and how many archived snapshots are retained for this site.</p>
+              </div>
             </Field>
             <div className="lg:col-span-2 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-soft px-4 py-3">
               <p className="text-sm text-muted">
@@ -302,9 +311,19 @@ export const SitesPage = () => {
                 <div className="mt-4 space-y-3 rounded-3xl bg-soft p-4 text-sm">
                   <DetailRow label="FortiGate" value={site.fortigateName || 'Not named yet'} />
                   <DetailRow label="IP" value={site.fortigateIp || 'Not configured'} />
+                  <DetailRow label="VDOM" value={site.fortigateVdom || 'root'} />
                   <DetailRow label="WAN IP" value={site.wanIp || 'Unavailable'} />
                   <DetailRow label="WAN" value={site.wanStatus} />
-                  <DetailRow label="Config Archive" value={site.configArchiveEnabled ? 'Enabled' : 'Disabled'} />
+                  <DetailRow
+                    label="Config Backups"
+                    value={
+                      site.configBackupsToKeep === 0
+                        ? 'Disabled'
+                        : site.configBackupsToKeep === null || site.configBackupsToKeep === undefined
+                          ? 'Unlimited'
+                          : String(site.configBackupsToKeep)
+                    }
+                  />
                 </div>
 
                 {site.lastSyncError ? (
@@ -361,25 +380,26 @@ export const SitesPage = () => {
             <Field label="FortiGate API Key">
               <input className={inputClassName} onChange={(event) => handleChange('fortigateApiKey', event.target.value)} placeholder="Leave blank to keep the current key" type="password" value={form.fortigateApiKey} />
             </Field>
+            <Field label="VDOM">
+              <input className={inputClassName} onChange={(event) => handleChange('fortigateVdom', event.target.value)} placeholder="root" value={form.fortigateVdom} />
+            </Field>
             <Field label="Admin Username">
               <input className={inputClassName} onChange={(event) => handleChange('adminUsername', event.target.value)} placeholder="Optional future SSH/CLI use" value={form.adminUsername} />
             </Field>
             <Field label="Admin Password">
               <input className={inputClassName} onChange={(event) => handleChange('adminPassword', event.target.value)} placeholder="Optional future SSH/CLI use" type="password" value={form.adminPassword} />
             </Field>
-            <Field label="Config Archive">
-              <label className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-soft px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-text">Enable daily FortiGate config archive</p>
-                  <p className="mt-1 text-sm text-muted">Disable this site if you do not want scheduled backups, downloads, or daily diffs.</p>
-                </div>
-                <input
-                  checked={form.configArchiveEnabled}
-                  className="h-5 w-5 rounded border-border bg-soft text-accent focus:ring-accent"
-                  onChange={(event) => handleToggle('configArchiveEnabled', event.target.checked)}
-                  type="checkbox"
-                />
-              </label>
+            <Field label="Config Backups To Keep">
+              <div className="rounded-2xl border border-border bg-soft px-4 py-3">
+                <select className={inputClassName} onChange={(event) => handleChange('configBackupsToKeep', event.target.value)} value={form.configBackupsToKeep}>
+                  <option value="0">0 - Disable completely</option>
+                  <option value="10">10</option>
+                  <option value="30">30</option>
+                  <option value="90">90</option>
+                  <option value="unlimited">Unlimited</option>
+                </select>
+                <p className="mt-2 text-sm text-muted">Set how many daily snapshots to retain. Choosing 0 disables config backup and removes archived snapshots for this site.</p>
+              </div>
             </Field>
             <div className="rounded-2xl bg-soft px-4 py-3 text-sm text-muted">
               The generated shorthand id stays stable after creation so links and device ids do not churn when you rename a site.
