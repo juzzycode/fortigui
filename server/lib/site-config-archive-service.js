@@ -120,7 +120,12 @@ const serializeDiff = ({ fromSnapshot, toSnapshot, patchText, stats }) => ({
 
 const isRollingKeyLine = (line) => {
   const trimmed = String(line || '').trim();
-  return trimmed.startsWith('set passphrase ENC ') || rollingKeyLinePattern.test(trimmed);
+  return (
+    trimmed.startsWith('set passphrase ENC ') ||
+    trimmed.startsWith('set password ENC ') ||
+    trimmed.startsWith('set sae-password ENC ') ||
+    rollingKeyLinePattern.test(trimmed)
+  );
 };
 
 const stripRollingKeys = (content) =>
