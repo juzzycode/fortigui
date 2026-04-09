@@ -9,6 +9,7 @@ BACKEND_PID_FILE="$RUN_DIR/backend.pid"
 FRONTEND_PID_FILE="$RUN_DIR/frontend.pid"
 LAUNCHER_PID_FILE="$RUN_DIR/launcher.pid"
 RUNTIME_ENV_FILE="$RUN_DIR/runtime.env"
+FRONTEND_PROCESS_HINT=""
 
 read_pid_file() {
   local pid_file="$1"
@@ -22,6 +23,11 @@ process_matches() {
   local pid="$1"
   local expected="$2"
   local args
+
+  if [[ -z "$expected" ]]; then
+    [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+    return $?
+  fi
 
   if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
     return 1
@@ -75,12 +81,15 @@ if [[ ! -d "$RUN_DIR" ]]; then
 fi
 
 if [[ -f "$RUNTIME_ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  . "$RUNTIME_ENV_FILE"
+  FRONTEND_PROCESS_HINT="${EDGEOPS_FRONTEND_PROCESS_HINT:-}"
   echo "[stop] Loaded runtime state from .run/edgeops/runtime.env"
 fi
 
 stopped_any=0
 
-if stop_process "frontend" "$frontend_pid" "server/frontend.js"; then
+if stop_process "frontend" "$frontend_pid" "$FRONTEND_PROCESS_HINT"; then
   stopped_any=1
 fi
 

@@ -32,6 +32,12 @@ npm run dev -- --host 0.0.0.0
 
 Use this when you only want to work on the React UI.
 
+To run the backend plus the Vite frontend together through the launcher:
+
+```bash
+./start.sh dev
+```
+
 ### Frontend Plus Gateway API
 
 If you also want the local backend running, start it in a second terminal:

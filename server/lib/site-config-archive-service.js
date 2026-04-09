@@ -4,6 +4,7 @@ import { createTwoFilesPatch } from 'diff';
 
 const dailyCheckIntervalMs = 60 * 60 * 1000;
 const requestTimeoutMs = 20_000;
+const requestRateLimitRetryCount = 2;
 
 const toSnapshotDate = (value = new Date()) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -33,9 +34,21 @@ const fortiGateBaseUrl = (value) => {
 
 const resolveSiteVdom = (site) => String(site?.fortigate_vdom || '').trim() || 'root';
 
-const requestText = (url, apiKey) =>
+const parseRetryAfterMs = (value) => {
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.max(250, Math.round(seconds * 1000));
+  }
+
+  return 1_000;
+};
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const requestText = (url, apiKey, options = {}) =>
   new Promise((resolve, reject) => {
     let settled = false;
+    const attempt = Number(options.attempt ?? 0);
     const request = https.request(
       url,
       {
@@ -53,13 +66,25 @@ const requestText = (url, apiKey) =>
         });
         response.on('end', () => {
           if (settled) return;
-          settled = true;
 
           if ((response.statusCode ?? 500) >= 400) {
+            if ((response.statusCode ?? 500) === 429 && attempt < requestRateLimitRetryCount) {
+              settled = true;
+              void wait(parseRetryAfterMs(response.headers['retry-after'])).then(() =>
+                requestText(url, apiKey, {
+                  ...options,
+                  attempt: attempt + 1,
+                }).then(resolve, reject),
+              );
+              return;
+            }
+
+            settled = true;
             reject(new Error(`FortiGate config backup failed with HTTP ${response.statusCode}`));
             return;
           }
 
+          settled = true;
           resolve(body);
         });
       },

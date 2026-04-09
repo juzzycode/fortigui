@@ -44,6 +44,14 @@ Important:
 - Not `npm run dev --host 0.0.0.0`
 - The extra `--` tells npm to pass `--host` through to Vite
 
+Or use the combined launcher in dev mode to run both backend and Vite together:
+
+```bash
+./start.sh dev
+```
+
+That uses `EDGEOPS_DEV_FRONTEND_HOST` and `EDGEOPS_DEV_FRONTEND_PORT` from `.env` when present.
+
 ## Start The Gateway Cache API
 
 Only run this if you want the local backend running too:
