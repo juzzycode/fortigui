@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import https from 'node:https';
 import { promisify } from 'node:util';
+import { serverConfig } from '../config.js';
 
 const execFileAsync = promisify(execFile);
 const pingCacheTtlMs = 60_000;
@@ -8,7 +9,7 @@ const switchStatsCacheTtlMs = 60_000;
 const switchStatusCacheTtlMs = 30_000;
 const managedApStatusCacheTtlMs = 30_000;
 const wirelessClientsCacheTtlMs = 30_000;
-const fortiGateRequestTimeoutMs = 5_000;
+const fortiGateRequestTimeoutMs = serverConfig.fortiGateRequestTimeoutMs;
 const fortiGateRateLimitRetryCount = 2;
 const switchStatsCache = new Map();
 const switchStatusCache = new Map();
