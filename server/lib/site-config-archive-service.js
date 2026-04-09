@@ -49,10 +49,11 @@ const requestText = (url, apiKey, options = {}) =>
   new Promise((resolve, reject) => {
     let settled = false;
     const attempt = Number(options.attempt ?? 0);
+    const method = options.method || 'GET';
     const request = https.request(
       url,
       {
-        method: 'GET',
+        method,
         rejectUnauthorized: false,
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -68,6 +69,15 @@ const requestText = (url, apiKey, options = {}) =>
           if (settled) return;
 
           if ((response.statusCode ?? 500) >= 400) {
+            if ((response.statusCode ?? 500) === 405 && method === 'GET') {
+              settled = true;
+              void requestText(url, apiKey, {
+                ...options,
+                method: 'POST',
+              }).then(resolve, reject);
+              return;
+            }
+
             if ((response.statusCode ?? 500) === 429 && attempt < requestRateLimitRetryCount) {
               settled = true;
               void wait(parseRetryAfterMs(response.headers['retry-after'])).then(() =>
