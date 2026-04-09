@@ -26,6 +26,9 @@ export const LoginPage = () => {
 
     try {
       const session = await api.login({ username, password });
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       setSessionUser(session.user);
       const destination = (location.state as { from?: string } | null)?.from ?? '/dashboard';
       navigate(destination, { replace: true });
@@ -56,7 +59,7 @@ export const LoginPage = () => {
         </section>
 
         <section className="panel flex items-center p-8 lg:p-10">
-          <form className="w-full space-y-6" onSubmit={handleSubmit}>
+          <form autoComplete="on" className="w-full space-y-6" onSubmit={handleSubmit}>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-muted">Sign In</p>
               <h2 className="mt-3 text-3xl font-semibold text-text">Operator Login</h2>
@@ -67,12 +70,28 @@ export const LoginPage = () => {
 
             <label className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">Username</span>
-              <input className={inputClassName} onChange={(event) => setUsername(event.target.value)} value={username} />
+              <input
+                autoCapitalize="none"
+                autoComplete="username"
+                className={inputClassName}
+                id="username"
+                name="username"
+                onChange={(event) => setUsername(event.target.value)}
+                value={username}
+              />
             </label>
 
             <label className="block">
               <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">Password</span>
-              <input className={inputClassName} onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
+              <input
+                autoComplete="current-password"
+                className={inputClassName}
+                id="current-password"
+                name="password"
+                onChange={(event) => setPassword(event.target.value)}
+                type="password"
+                value={password}
+              />
             </label>
 
             <button className="focus-ring inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70" disabled={submitting} type="submit">

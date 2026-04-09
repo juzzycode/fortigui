@@ -205,7 +205,7 @@ export const createSiteStore = ({ db }) => ({
           id, shorthand_id, name, address, timezone, region, fortigate_name, fortigate_ip,
           fortigate_api_key, fortigate_vdom, admin_username, admin_password, config_archive_enabled, config_backups_to_keep, is_demo, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       `,
       row.id,
       row.shorthand_id,
