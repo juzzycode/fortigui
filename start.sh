@@ -80,6 +80,7 @@ ensure_not_running() {
 }
 
 write_runtime_files() {
+  mkdir -p "$RUN_DIR"
   printf '%s\n' "$backend_pid" >"$BACKEND_PID_FILE"
   printf '%s\n' "$frontend_pid" >"$FRONTEND_PID_FILE"
   printf '%s\n' "$$" >"$LAUNCHER_PID_FILE"
