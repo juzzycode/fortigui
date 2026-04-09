@@ -76,6 +76,17 @@ Only run this when you want to verify a production build:
 npm run build
 ```
 
+### Production Start
+
+To build the frontend and run both production processes together:
+
+```bash
+chmod +x ./start.sh
+./start.sh
+```
+
+The production frontend serves `dist/` and proxies `/api` to the backend automatically.
+
 ## Implemented Pages
 
 - `/dashboard`
@@ -97,6 +108,7 @@ npm run build
 ## Additional Docs
 
 - `docs/QUICKSTART.md`
+- `docs/DEPLOYMENT.md`
 - `docs/SITES.md`
 - `docs/GATEWAYS.md`
 - `docs/FEATURES.md`

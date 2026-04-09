@@ -151,6 +151,24 @@ Only run this when you want to test a production build:
 npm run build
 ```
 
+## Production Start
+
+To run both the backend and a production frontend together:
+
+```bash
+chmod +x ./start.sh
+./start.sh
+```
+
+By default this:
+
+- builds `dist/`
+- starts the API on `EDGEOPS_PORT` or `8787`
+- starts the production frontend on `EDGEOPS_FRONTEND_PORT` or `8080`
+- proxies frontend `/api` traffic back to the backend automatically
+
+For nginx and Apache examples, see `docs/DEPLOYMENT.md` plus the stub files in `docs/deploy/`.
+
 ## Typical Workflows
 
 ### Frontend only
