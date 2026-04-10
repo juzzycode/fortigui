@@ -96,6 +96,7 @@ const TopologyNodeCard = ({ node }: { node: TopologyNode }) => {
   const Icon = iconByType[node.type];
   const size = nodeSizes[node.type];
   const metaEntries = Object.entries(node.meta ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== '');
+  const compactLabel = formatNodeLabel(node);
 
   return (
     <div
@@ -108,7 +109,9 @@ const TopologyNodeCard = ({ node }: { node: TopologyNode }) => {
             <Icon className="h-4 w-4" />
           </div>
           <div>
-            <p className="break-words text-sm font-semibold leading-5 text-text">{node.label}</p>
+            <p className="break-words text-sm font-semibold leading-5 text-text" title={node.label}>
+              {compactLabel}
+            </p>
             <p className="text-[11px] uppercase tracking-[0.18em] text-muted">{node.type.replace('-', ' ')}</p>
           </div>
         </div>
@@ -127,6 +130,21 @@ const TopologyNodeCard = ({ node }: { node: TopologyNode }) => {
     </div>
   );
 };
+
+const formatNodeLabel = (node: TopologyNode) => {
+  if (node.type !== 'ap') return node.label;
+
+  const model = typeof node.meta?.model === 'string' ? node.meta.model : '';
+  const escapedModel = escapeRegExp(model);
+  return node.label
+    .replace(/\s+Integrated\s+AP$/i, '')
+    .replace(/\s+AP$/i, '')
+    .replace(escapedModel ? new RegExp(`[-_\\s]*${escapedModel}$`, 'i') : /$^/, '')
+    .replace(/[-_\s]+$/g, '')
+    .trim() || node.label;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const formatMetaValue = (key: string, value: string | number | null) => {
   if (value === null || value === undefined || value === '') return 'Unavailable';
