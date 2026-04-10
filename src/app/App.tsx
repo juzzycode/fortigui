@@ -12,6 +12,7 @@ import { FirmwarePage } from '@/features/firmware/FirmwarePage';
 import { FortiGateDetailPage } from '@/features/fortigates/FortiGateDetailPage';
 import { FortiGatesPage } from '@/features/fortigates/FortiGatesPage';
 import { ProfilesPage } from '@/features/profiles/ProfilesPage';
+import { RevisionsPage } from '@/features/revisions/RevisionsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { SiteDetailPage } from '@/features/sites/SiteDetailPage';
 import { SitesPage } from '@/features/sites/SitesPage';
@@ -101,6 +102,7 @@ const ProtectedRoutes = () => {
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/profiles" element={<ProfilesPage />} />
         <Route path="/firmware" element={<FirmwarePage />} />
+        <Route path="/revisions" element={<RevisionsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </AppShell>

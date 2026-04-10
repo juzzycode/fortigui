@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { Bell, ChevronDown, Command, KeyRound, LogOut, MoonStar, Search, Settings2, SunMedium, UserCircle2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { BrandMark } from '@/components/common/BrandMark';
 import { cn } from '@/lib/utils';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
@@ -18,6 +19,7 @@ const navItems = [
   ['Alerts', '/alerts'],
   ['Profiles', '/profiles'],
   ['Firmware', '/firmware'],
+  ['Revisions', '/revisions'],
   ['Settings', '/settings'],
 ];
 
@@ -100,8 +102,13 @@ export const AppShell = ({ children }: PropsWithChildren) => {
       <div className="mx-auto flex min-h-screen max-w-[1800px] gap-6 p-4 lg:p-6">
         <aside className="panel hidden w-72 shrink-0 flex-col p-4 lg:flex">
           <div className="rounded-[28px] bg-gradient-to-br from-accent/15 via-accent-muted to-sky-400/10 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent">EdgeOps Cloud</p>
-            <h1 className="mt-3 text-2xl font-semibold text-text">Network operations, simplified.</h1>
+            <div className="flex items-center gap-3">
+              <BrandMark size="lg" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-accent">EdgeOps Cloud</p>
+                <h1 className="mt-2 text-2xl font-semibold text-text">Network operations, simplified.</h1>
+              </div>
+            </div>
             <p className="mt-2 text-sm text-muted">Original monitoring UI built for distributed switching and wireless visibility.</p>
           </div>
           <nav className="mt-6 space-y-1">
@@ -116,9 +123,12 @@ export const AppShell = ({ children }: PropsWithChildren) => {
               </NavLink>
             ))}
           </nav>
-          <div className="mt-auto rounded-3xl border border-border bg-soft p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Version</p>
-            <p className="mt-2 text-sm font-medium text-text">EdgeOps Cloud {EDGEOPS_VERSION}</p>
+          <div className="mt-auto flex items-center gap-3 rounded-3xl border border-border bg-soft p-4">
+            <BrandMark size="sm" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Version</p>
+              <p className="mt-1 text-sm font-medium text-text">EdgeOps Cloud {EDGEOPS_VERSION}</p>
+            </div>
           </div>
         </aside>
 
@@ -129,6 +139,10 @@ export const AppShell = ({ children }: PropsWithChildren) => {
             </div>
           ) : null}
           <div className="mb-4 flex gap-2 overflow-x-auto lg:hidden">
+            <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-2">
+              <BrandMark size="sm" />
+              <span className="text-sm font-semibold text-text">EdgeOps</span>
+            </div>
             {navItems.map(([label, to]) => (
               <NavLink
                 key={to}
