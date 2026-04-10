@@ -1,6 +1,7 @@
 import { KeyRound, LoaderCircle, ShieldCheck, UserCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { cleanupLastPassArtifacts } from '@/lib/password-manager';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -29,9 +30,12 @@ export const LoginPage = () => {
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
+      cleanupLastPassArtifacts();
       setSessionUser(session.user);
       const destination = (location.state as { from?: string } | null)?.from ?? '/dashboard';
       navigate(destination, { replace: true });
+      window.setTimeout(cleanupLastPassArtifacts, 150);
+      window.setTimeout(cleanupLastPassArtifacts, 600);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to sign in');
     } finally {
@@ -59,7 +63,7 @@ export const LoginPage = () => {
         </section>
 
         <section className="panel flex items-center p-8 lg:p-10">
-          <form autoComplete="on" className="w-full space-y-6" onSubmit={handleSubmit}>
+          <form autoComplete="on" className="w-full space-y-6" data-lpignore="true" data-form-type="other" onSubmit={handleSubmit}>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-muted">Sign In</p>
               <h2 className="mt-3 text-3xl font-semibold text-text">Operator Login</h2>
@@ -74,6 +78,8 @@ export const LoginPage = () => {
                 autoCapitalize="none"
                 autoComplete="username"
                 className={inputClassName}
+                data-lpignore="true"
+                data-form-type="other"
                 id="username"
                 name="username"
                 onChange={(event) => setUsername(event.target.value)}
@@ -86,6 +92,8 @@ export const LoginPage = () => {
               <input
                 autoComplete="current-password"
                 className={inputClassName}
+                data-lpignore="true"
+                data-form-type="other"
                 id="current-password"
                 name="password"
                 onChange={(event) => setPassword(event.target.value)}

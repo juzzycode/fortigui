@@ -17,6 +17,7 @@ import { SiteDetailPage } from '@/features/sites/SiteDetailPage';
 import { SitesPage } from '@/features/sites/SitesPage';
 import { SwitchDetailPage } from '@/features/switches/SwitchDetailPage';
 import { SwitchesPage } from '@/features/switches/SwitchesPage';
+import { cleanupLastPassArtifacts } from '@/lib/password-manager';
 import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 
@@ -48,8 +49,13 @@ export const App = () => {
 
   useEffect(() => {
     if (authStatus !== 'authenticated') return undefined;
+    cleanupLastPassArtifacts();
+    const cleanupTimer = window.setTimeout(cleanupLastPassArtifacts, 500);
     const timer = window.setInterval(() => bumpLiveTick(), 12000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(cleanupTimer);
+      window.clearInterval(timer);
+    };
   }, [authStatus, bumpLiveTick]);
 
   if (authStatus === 'loading') {
