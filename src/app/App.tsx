@@ -37,7 +37,13 @@ export const App = () => {
     setAuthStatus('loading');
     api
       .getSession()
-      .then((session) => setSessionUser(session.user))
+      .then((session) => {
+        if (session) {
+          setSessionUser(session.user);
+        } else {
+          clearSession();
+        }
+      })
       .catch(() => clearSession());
   }, [clearSession, setAuthStatus, setSessionUser]);
 

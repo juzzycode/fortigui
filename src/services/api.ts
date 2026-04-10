@@ -25,6 +25,7 @@ const resolveApiBaseUrl = () => {
 
 const apiBaseUrl = resolveApiBaseUrl();
 const withApiBase = (input: string) => `${apiBaseUrl}${input}`;
+let sessionRequest: Promise<AuthSession | null> | null = null;
 
 class ApiError extends Error {
   status: number;
@@ -119,7 +120,17 @@ export const api = {
   getDownloadUrl: (input: string) => withApiBase(input),
   login: async (payload: { username: string; password: string }) =>
     jsonRequest<{ session: AuthSession }>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }).then((result) => result.session),
-  getSession: async () => jsonRequest<{ session: AuthSession }>('/api/auth/session').then((result) => result.session),
+  getSession: async () => {
+    if (!sessionRequest) {
+      sessionRequest = jsonRequest<{ session: AuthSession | null }>('/api/auth/session')
+        .then((result) => result.session)
+        .finally(() => {
+          sessionRequest = null;
+        });
+    }
+
+    return sessionRequest;
+  },
   logout: async () => {
     await jsonRequest<unknown>('/api/auth/logout', { method: 'POST' });
   },

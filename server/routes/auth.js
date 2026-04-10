@@ -1,5 +1,19 @@
 import express from 'express';
-import { clearSessionCookie, createAuthMiddleware, setSessionCookie } from '../lib/auth.js';
+import { clearSessionCookie, createAuthMiddleware, sessionCookieName, setSessionCookie } from '../lib/auth.js';
+
+const parseCookies = (cookieHeader = '') =>
+  String(cookieHeader)
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((cookies, entry) => {
+      const separatorIndex = entry.indexOf('=');
+      if (separatorIndex === -1) return cookies;
+      const key = entry.slice(0, separatorIndex).trim();
+      const value = decodeURIComponent(entry.slice(separatorIndex + 1));
+      cookies[key] = value;
+      return cookies;
+    }, {});
 
 const sessionResponse = (session) => ({
   session: {
@@ -39,8 +53,22 @@ export const createAuthRouter = ({ authStore, sessionTtlHours }) => {
     response.status(201).json(sessionResponse(fullSession));
   });
 
-  router.get('/session', requireSession, async (request, response) => {
-    response.json(sessionResponse(request.auth.session));
+  router.get('/session', async (request, response) => {
+    const token = parseCookies(request.headers.cookie)[sessionCookieName];
+    if (!token) {
+      response.json({ session: null });
+      return;
+    }
+
+    const session = await authStore.getSessionByToken(token);
+    if (!session) {
+      clearSessionCookie(response);
+      response.json({ session: null });
+      return;
+    }
+
+    await authStore.touchSession(token);
+    response.json(sessionResponse(session));
   });
 
   router.post('/logout', requireSession, async (request, response) => {
