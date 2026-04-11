@@ -53,6 +53,21 @@ const transformMysqlSql = (sql) => {
   return transformed.replace(/\bTEXT\b/g, 'VARCHAR(191)');
 };
 
+const inlineMysqlLimitParams = (sql, params) => {
+  const normalizedParams = [...params];
+  const transformedSql = sql.replace(/\bLIMIT\s+\?/gi, () => {
+    const rawLimit = normalizedParams.pop();
+    const limit = Math.trunc(Number(rawLimit));
+    if (!Number.isFinite(limit) || limit < 0) {
+      throw new Error(`Invalid MySQL LIMIT value: ${rawLimit}`);
+    }
+
+    return `LIMIT ${limit}`;
+  });
+
+  return [transformedSql, normalizedParams];
+};
+
 const createSqliteDatabase = async (dbPath) => {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
@@ -180,9 +195,10 @@ const createMysqlDatabase = async (config) => {
   const execute = async (sql, params = []) => {
     const transformed = transformMysqlSql(sql);
     if (!transformed) return [[], []];
+    const [preparedSql, preparedParams] = inlineMysqlLimitParams(transformed, params);
 
     try {
-      return await pool.execute(transformed, params);
+      return await pool.execute(preparedSql, preparedParams);
     } catch (error) {
       if (error?.code === 'ER_DUP_KEYNAME' || error?.code === 'ER_TABLE_EXISTS_ERROR') {
         return [[], []];

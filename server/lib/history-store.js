@@ -18,6 +18,11 @@ const parseJson = (value, fallback) => {
   }
 };
 
+const normalizeLimit = (value, fallback = 50) => {
+  const limit = Math.trunc(Number(value));
+  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 500) : fallback;
+};
+
 export const createHistoryStore = ({ db }) => ({
   async init() {
     await db.exec(`
@@ -107,6 +112,7 @@ export const createHistoryStore = ({ db }) => ({
   },
 
   async listSiteMetrics(siteId, limit = 48) {
+    const safeLimit = normalizeLimit(limit, 48);
     return db.all(
       `
         SELECT *
@@ -116,7 +122,7 @@ export const createHistoryStore = ({ db }) => ({
         LIMIT ?
       `,
       siteId,
-      limit,
+      safeLimit,
     );
   },
 
@@ -183,6 +189,7 @@ export const createHistoryStore = ({ db }) => ({
   },
 
   async listRecentActions({ siteId, targetId, limit = 20 } = {}) {
+    const safeLimit = normalizeLimit(limit, 20);
     if (targetId) {
       return db.all(
         `
@@ -193,7 +200,7 @@ export const createHistoryStore = ({ db }) => ({
           LIMIT ?
         `,
         targetId,
-        limit,
+        safeLimit,
       );
     }
 
@@ -207,7 +214,7 @@ export const createHistoryStore = ({ db }) => ({
           LIMIT ?
         `,
         siteId,
-        limit,
+        safeLimit,
       );
     }
 
@@ -218,7 +225,7 @@ export const createHistoryStore = ({ db }) => ({
         ORDER BY requested_at DESC
         LIMIT ?
       `,
-      limit,
+      safeLimit,
     );
   },
 
@@ -253,6 +260,7 @@ export const createHistoryStore = ({ db }) => ({
   },
 
   async listAlertHistory({ siteId, targetId, limit = 50 } = {}) {
+    const safeLimit = normalizeLimit(limit, 50);
     if (targetId) {
       return db.all(
         `
@@ -263,7 +271,7 @@ export const createHistoryStore = ({ db }) => ({
           LIMIT ?
         `,
         targetId,
-        limit,
+        safeLimit,
       );
     }
 
@@ -277,7 +285,7 @@ export const createHistoryStore = ({ db }) => ({
           LIMIT ?
         `,
         siteId,
-        limit,
+        safeLimit,
       );
     }
 
@@ -288,7 +296,7 @@ export const createHistoryStore = ({ db }) => ({
         ORDER BY observed_at DESC
         LIMIT ?
       `,
-      limit,
+      safeLimit,
     );
   },
 
