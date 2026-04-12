@@ -152,7 +152,15 @@ The example maps `/api` directly to the internal backend on `127.0.0.1:8787`, th
 If you keep the default environment, the important nginx shape is:
 
 ```nginx
-location /api {
+location = /api {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location ^~ /api/ {
     proxy_pass http://127.0.0.1:8787;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -191,7 +199,7 @@ sudo apachectl configtest
 sudo systemctl reload apache2
 ```
 
-The Apache example also reverse proxies all requests to the production frontend server on `127.0.0.1:8080`.
+The Apache example maps `/api` directly to the backend on `127.0.0.1:8787`, sends all other traffic to the production frontend on `127.0.0.1:8080`, adds basic security headers, and denies common local data paths.
 
 ## Notes
 

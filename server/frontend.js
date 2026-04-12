@@ -63,6 +63,12 @@ const app = express();
 
 app.disable('x-powered-by');
 app.set('trust proxy', true);
+app.use((_request, response, next) => {
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Referrer-Policy', 'same-origin');
+  response.setHeader('X-Frame-Options', 'DENY');
+  next();
+});
 
 app.use(apiPrefix, (request, response) => {
   const proxyRequest = proxyTransport.request(

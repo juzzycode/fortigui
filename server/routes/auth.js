@@ -48,7 +48,7 @@ export const createAuthRouter = ({ authStore, sessionTtlHours }) => {
       ipAddress: request.ip,
     });
 
-    setSessionCookie(response, session.token, sessionTtlHours * 60 * 60);
+    setSessionCookie(response, session.token, sessionTtlHours * 60 * 60, request);
     const fullSession = await authStore.getSessionByToken(session.token);
     response.status(201).json(sessionResponse(fullSession));
   });
@@ -62,7 +62,7 @@ export const createAuthRouter = ({ authStore, sessionTtlHours }) => {
 
     const session = await authStore.getSessionByToken(token);
     if (!session) {
-      clearSessionCookie(response);
+      clearSessionCookie(response, request);
       response.json({ session: null });
       return;
     }
@@ -73,7 +73,7 @@ export const createAuthRouter = ({ authStore, sessionTtlHours }) => {
 
   router.post('/logout', requireSession, async (request, response) => {
     await authStore.deleteSessionByToken(request.auth.token);
-    clearSessionCookie(response);
+    clearSessionCookie(response, request);
     response.status(204).send();
   });
 
@@ -97,7 +97,7 @@ export const createAuthRouter = ({ authStore, sessionTtlHours }) => {
     }
 
     await authStore.changePassword(request.auth.user.id, newPassword);
-    clearSessionCookie(response);
+    clearSessionCookie(response, request);
     response.status(204).send();
   });
 

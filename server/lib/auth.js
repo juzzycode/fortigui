@@ -14,25 +14,39 @@ const parseCookies = (cookieHeader = '') =>
       return cookies;
     }, {});
 
-const cookieAttributes = ({ maxAgeSeconds }) =>
+const shouldUseSecureCookie = (request) => {
+  if (process.env.EDGEOPS_COOKIE_SECURE === 'true') return true;
+  if (process.env.EDGEOPS_COOKIE_SECURE === 'false') return false;
+
+  return request?.secure || request?.headers?.['x-forwarded-proto'] === 'https';
+};
+
+const cookieAttributes = ({ maxAgeSeconds, secure = false }) =>
   [
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
+    secure ? 'Secure' : null,
     maxAgeSeconds !== undefined ? `Max-Age=${maxAgeSeconds}` : null,
   ]
     .filter(Boolean)
     .join('; ');
 
-export const setSessionCookie = (response, token, maxAgeSeconds) => {
+export const setSessionCookie = (response, token, maxAgeSeconds, request) => {
   response.setHeader(
     'Set-Cookie',
-    `${sessionCookieName}=${encodeURIComponent(token)}; ${cookieAttributes({ maxAgeSeconds })}`,
+    `${sessionCookieName}=${encodeURIComponent(token)}; ${cookieAttributes({
+      maxAgeSeconds,
+      secure: shouldUseSecureCookie(request),
+    })}`,
   );
 };
 
-export const clearSessionCookie = (response) => {
-  response.setHeader('Set-Cookie', `${sessionCookieName}=; ${cookieAttributes({ maxAgeSeconds: 0 })}`);
+export const clearSessionCookie = (response, request) => {
+  response.setHeader('Set-Cookie', `${sessionCookieName}=; ${cookieAttributes({
+    maxAgeSeconds: 0,
+    secure: shouldUseSecureCookie(request),
+  })}`);
 };
 
 export const createAuthMiddleware = ({ authStore }) => async (request, response, next) => {
@@ -46,7 +60,7 @@ export const createAuthMiddleware = ({ authStore }) => async (request, response,
 
   const session = await authStore.getSessionByToken(token);
   if (!session) {
-    clearSessionCookie(response);
+    clearSessionCookie(response, request);
     response.status(401).json({ error: 'Session expired or invalid' });
     return;
   }

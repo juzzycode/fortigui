@@ -33,7 +33,7 @@ export const serverConfig = {
   },
   dbPath: path.resolve(process.cwd(), process.env.EDGEOPS_DB_PATH ?? path.join(dataDir, 'edgeops-cache.sqlite')),
   secret: process.env.EDGEOPS_SECRET ?? '',
-  corsOrigin: process.env.EDGEOPS_CORS_ORIGIN ?? '*',
+  corsOrigin: process.env.EDGEOPS_CORS_ORIGIN ?? '',
   fortiGateRequestTimeoutMs: Number(process.env.EDGEOPS_FORTIGATE_TIMEOUT_MS ?? 15000),
   sitesDbPath: path.resolve(dataDir, 'sites.sqlite'),
   authDbPath: path.resolve(dataDir, 'auth.sqlite'),

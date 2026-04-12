@@ -1,7 +1,10 @@
 import express from 'express';
+import { requireSuperAdmin } from '../lib/auth.js';
 
 export const createSetupRouter = ({ setupStore }) => {
   const router = express.Router();
+
+  router.use(requireSuperAdmin);
 
   router.get('/status', async (_request, response) => {
     response.json(await setupStore.getStatus());

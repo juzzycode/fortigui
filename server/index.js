@@ -80,10 +80,17 @@ const start = async () => {
   });
   const requireSession = createAuthMiddleware({ authStore });
 
+  app.set('trust proxy', true);
   app.use(express.json());
+  app.use((_request, response, next) => {
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('Referrer-Policy', 'same-origin');
+    response.setHeader('X-Frame-Options', 'DENY');
+    next();
+  });
   app.use(
     cors({
-      origin: serverConfig.corsOrigin === '*' ? true : serverConfig.corsOrigin,
+      origin: serverConfig.corsOrigin ? (serverConfig.corsOrigin === '*' ? true : serverConfig.corsOrigin) : false,
       credentials: true,
     }),
   );
@@ -101,7 +108,7 @@ const start = async () => {
     });
   }
 
-  app.get('/', (_request, response) => {
+  app.get('/', requireSession, (_request, response) => {
     response.type('html').send(`<!doctype html>
 <html lang="en">
   <head>
@@ -183,7 +190,7 @@ const start = async () => {
 </html>`);
   });
 
-  app.get(apiPath(), (_request, response) => {
+  app.get(apiPath(), requireSession, (_request, response) => {
     response.json({
       name: 'EdgeOps Cloud API',
       version: '1.0.0',
@@ -232,20 +239,19 @@ const start = async () => {
   app.get(apiPath('/health'), (_request, response) => {
     response.json({
       ok: true,
-      dbPath: serverConfig.dbPath,
-      authDbPath: serverConfig.authDbPath,
+      storage: serverConfig.database.client,
     });
   });
 
-  app.get(apiPath('/openapi.json'), (_request, response) => {
+  app.get(apiPath('/openapi.json'), requireSession, (_request, response) => {
     response.json(openApiDocument);
   });
 
-  app.use(apiPath('/docs'), swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  app.use(apiPath('/docs'), requireSession, swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.use(apiPath('/auth'), createAuthRouter({ authStore, sessionTtlHours: serverConfig.sessionTtlHours }));
   app.post(apiPath('/logout'), requireSession, async (request, response) => {
     await authStore.deleteSessionByToken(request.auth.token);
-    clearSessionCookie(response);
+    clearSessionCookie(response, request);
     response.status(204).send();
   });
   app.use(apiPath(), requireSession);

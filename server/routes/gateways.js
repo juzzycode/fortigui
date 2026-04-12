@@ -1,8 +1,10 @@
 import express from 'express';
-import { requireOperator } from '../lib/auth.js';
+import { requireOperator, requireSuperAdmin } from '../lib/auth.js';
 
 export const createGatewayRouter = ({ repository, gatewayConfigService }) => {
   const router = express.Router();
+
+  router.use(requireSuperAdmin);
 
   router.get('/', async (_request, response) => {
     response.json({ gateways: await repository.listGateways() });
