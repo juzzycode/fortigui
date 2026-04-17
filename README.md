@@ -130,6 +130,7 @@ Use `./start.sh -d` if you want the stack started in the background instead of s
 
 - `docs/QUICKSTART.md`
 - `docs/DEPLOYMENT.md`
+- `docs/BACKEND.md`
 - `docs/SITES.md`
 - `docs/GATEWAYS.md`
 - `docs/FEATURES.md`

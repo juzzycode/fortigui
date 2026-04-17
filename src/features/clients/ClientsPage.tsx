@@ -11,6 +11,13 @@ import { api } from '@/services/api';
 import { useAppStore } from '@/store/useAppStore';
 import type { Client, Site } from '@/types/models';
 
+const visibleClientWindowMs = 6 * 60 * 60 * 1000;
+
+const wasSeenRecently = (client: Client) => {
+  const lastSeenMs = new Date(client.lastSeen).getTime();
+  return Number.isFinite(lastSeenMs) && Date.now() - lastSeenMs <= visibleClientWindowMs;
+};
+
 const getClientStatusPresentation = (client: Client) => {
   if (client.status === 'blocked') {
     return {
@@ -50,19 +57,21 @@ export const ClientsPage = () => {
   const filtered = useMemo(() => {
     if (!clients) return [];
     const lowered = query.toLowerCase();
-    return clients.filter((client) =>
-      [
-        client.name,
-        client.hostname ?? '',
-        client.mac,
-        client.ip,
-        client.username,
-        client.vendor ?? '',
-        client.network,
-        client.connectedPort ?? '',
-        client.connectedApName ?? '',
-      ].some((value) => value.toLowerCase().includes(lowered)),
-    );
+    return clients
+      .filter(wasSeenRecently)
+      .filter((client) =>
+        [
+          client.name,
+          client.hostname ?? '',
+          client.mac,
+          client.ip,
+          client.username,
+          client.vendor ?? '',
+          client.network,
+          client.connectedPort ?? '',
+          client.connectedApName ?? '',
+        ].some((value) => value.toLowerCase().includes(lowered)),
+      );
   }, [clients, query]);
 
   if (!clients) return <LoadingState label="Loading client inventory..." />;
@@ -111,7 +120,7 @@ export const ClientsPage = () => {
     <>
       <div className="space-y-6">
         <PageHeader eyebrow="Endpoints" title="Clients & Endpoints" description="Track live FortiGate-discovered wired and wireless endpoints, search by identity attributes, and inspect switch port or AP attachment details." />
-        <Panel title="Client Inventory" subtitle={`${filtered.length} clients shown`}>
+        <Panel title="Client Inventory" subtitle={`${filtered.length} clients seen in the last 6 hours`}>
           <div className="mb-4 flex items-center gap-3 rounded-2xl border border-border bg-soft px-4 py-3">
             <Search className="h-4 w-4 text-muted" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full border-0 bg-transparent text-sm text-text focus:outline-none" placeholder="Search hostname, MAC, IP, username, vendor, SSID, or port" />
